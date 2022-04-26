@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+
+<!--
+Date:           2021 / 11 / 13
+UR Program:     extern_control_61_98.urp
+
+UR ip:          192.168.61.98
+PC ip:          192.168.61.80
+-->
+
+<launch>
+    <arg name="limited"  default="false"/>
+
+    <!-- start the robot -->
+    <include file="$(find ur_robot_driver)/launch/ur5_bringup.launch">
+        <!-- deprecated-->
+        <!-- <arg name="limited" value="$(arg limited)"/> -->
+        <arg name="robot_ip" value="192.168.61.98" />
+        <arg name="kinematics_config" value="/opt/ur_ws/config/ur327_calibration.yaml" />
+    </include>
+
+    <include file="$(find ur5_moveit_config)/launch/ur5_moveit_planning_execution.launch">
+        <!-- deprecated-->
+        <!-- <arg name="limited" value="$(arg limited)"/> -->
+    </include>
+
+    <include file="$(find ur5_moveit_config)/launch/moveit_rviz.launch">
+        <!-- deprecated-->
+        <!-- <arg name="config" value="true"/> -->
+        <arg name="rviz_config" value="$(find ur5_moveit_config)/launch/moveit.rviz"/>
+    </include>
+
+</launch>
