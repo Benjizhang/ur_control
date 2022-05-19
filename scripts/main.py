@@ -1,3 +1,4 @@
+from cmath import cos
 import copy
 import threading
 
@@ -13,7 +14,10 @@ import helper
 from tf import transformations as tfs
 from scene_helper import setup_scene
 from ur_move import MoveGroupPythonInteface
-
+from robotiq_ft_sensor.msg import ft_sensor
+import math
+import moveit_commander
+import sys
 
 class listener():
     def __init__(self):
@@ -56,7 +60,7 @@ class listener():
         # self.plot_pub = rospy.Publisher("plot", geometry_msgs.msg.PointStamped, queue_size=2)
 
         # ns = '/obj_detect/'
-        self.obj_pose_sub = rospy.Subscriber('/tag_detections', apriltag_ros.msg.AprilTagDetectionArray, self.detect_callbak, queue_size=1)
+        self.obj_pose_sub = rospy.Subscriber("robotiq_ft_sensor", ft_sensor, self.detect_callbak, queue_size=1)
 
         self.lock_read = threading.Lock()
         # self.run_flag = False
@@ -65,6 +69,8 @@ class listener():
         # self.posearray_sub = rospy.Subscriber("/objpose", PoseArray, self.pose_callbak, queue_size=2)
         # self.pose_array=None
         self.sensor_data = None
+        self.force_val = None
+        self.force_dir = None
 
     def detect_callbak(self,msg):
         # msg = apriltag_ros.msg.AprilTagDetectionArray()
@@ -72,26 +78,138 @@ class listener():
         #     det.pose
         # a=msg.detections[0].pose.pose.pose
         with self.lock_read:
-            self.sensor_data = msg.xxx
+            rospy.loginfo(f"I heard: {msg}")
+            # self.sensor_data = msg.xxx
 
-        rospy.loginfo(msg)
+            # calculate the force values
+            self.force_val = math.sqrt((msg.Fx)**2+(msg.Fy)**2)
+
+            # calculate the force dir. (deg)
+            dir_rad = math.atan2(msg.Fy, msg.Fx)
+            self.force_dir = math.degrees(dir_rad)            
+
+    #     # rospy.loginfo(msg)
     
     def read_sensor(self):
         with self.lock_read:
             return self.sensor_data
+    
+    def get_force_val(self):
+        with self.lock_read:
+            return self.force_val
 
+    def get_force_dir(self):
+        with self.lock_read:
+            return self.force_dir
+
+import robotiq_ft_sensor.srv
+def zero_ft_sensor():
+    srv_name = '/robotiq_ft_sensor_acc'
+    rospy.wait_for_service(srv_name)
+    try:
+        srv_fun = rospy.ServiceProxy(srv_name, robotiq_ft_sensor.srv.sensor_accessor)
+        resp1 = srv_fun(robotiq_ft_sensor.srv.sensor_accessorRequest.COMMAND_SET_ZERO, '')
+        return resp1.success
+    except rospy.ServiceException as e:
+        print("Service call failed: %s"%e)
+
+# check whether in the limit 
+def checkCoorLimit(pos, lim):
+    curx = pos[0]
+    cury = pos[1]
+    if curx >= lim[0] and curx <= lim[1] and \
+        cury >= lim[2] and cury <= lim[3]:
+        return True
+    else: return False
+
+def getXYwld_from_tsk(tansl, xy_tsk):
+    # fixed orientation of two frames
+    Rot_tsk_to_wld = np.mat([[0, -1],[1, 0]])
+    tanslation_column = np.reshape(tansl,(2,1))
+    xy_tsk_column = np.reshape(xy_tsk,(2,1))
+    xy_wld = tansl+Rot_tsk_to_wld*xy_tsk_column
+    return xy_wld 
+
+def move_along_boundary(lim):
+    waypoints = []
+    wpose = ur_control.group.get_current_pose().pose
+    # record start pt
+    x_start = wpose.position.x
+    y_start = wpose.position.y
+    
+    # get vertical
+    quater_init = tfs.quaternion_from_euler(0, np.pi, np.pi/2,'szyz')
+    wpose.orientation.x = quater_init[0]
+    wpose.orientation.y = quater_init[1]
+    wpose.orientation.z = quater_init[2]
+    wpose.orientation.w = quater_init[3]
+    waypoints.append(copy.deepcopy(wpose))
+
+    xmin = lim[0]
+    xmax = lim[1]
+    ymin = lim[2]
+    ymax = lim[3]
+    # xmin, ymin
+    wpose.position.x = xmin
+    wpose.position.y = ymin
+    waypoints.append(copy.deepcopy(wpose))
+    # xmin, ymax
+    wpose.position.x = xmin
+    wpose.position.y = ymax
+    waypoints.append(copy.deepcopy(wpose))
+    # xmax, ymax
+    wpose.position.x = xmax
+    wpose.position.y = ymax
+    waypoints.append(copy.deepcopy(wpose))
+    # xmax, ymin
+    wpose.position.x = xmax
+    wpose.position.y = ymin
+    waypoints.append(copy.deepcopy(wpose))
+    # go back
+    wpose.position.x = x_start
+    wpose.position.y = y_start
+    waypoints.append(copy.deepcopy(wpose))
+
+    (plan, fraction) = ur_control.group.compute_cartesian_path(
+                                waypoints,   # waypoints to follow
+                                0.01,        # eef_step
+                                0.0)
+    ur_control.group.execute(plan, wait=True)
+    ur_control.group.stop()
 
 
 if __name__ == '__main__':
     rospy.init_node("test_move")
-
-    listener = listener()
-    while not rospy.is_shutdown():
-        force = listener.read_sensor()
-        # if force >
-        rospy.sleep(0.03)
-    # rospy.sleep(1)
+    
+    # rospy.loginfo('zeroed')
     # rospy.spin()
+    moveit_commander.roscpp_initialize(sys.argv)
+    enableFt300 = 0
+
+    ############# ft 300 #############
+    if enableFt300 == 1:
+        listener = listener()
+        while listener.get_force_val() is None:
+            rospy.sleep(0.1)
+
+        while not rospy.is_shutdown():
+            force = listener.read_sensor()
+            f_val = listener.get_force_val()
+            f_dir = listener.get_force_dir()
+
+            if f_val > 8:
+                print("force is large")
+                # ur_control.stop()
+
+            rospy.sleep(0.03)
+
+
+    ################################################################
+    ############# ur control #############
+    # robot = moveit_commander.RobotCommander()
+    # scene = moveit_commander.PlanningSceneInterface()
+    # group_name = "ur5"
+    # group = moveit_commander.MoveGroupCommander(group_name)
 
     # ur_control = MoveGroupPythonInteface(sim=True)  #simu
     ur_control = MoveGroupPythonInteface(sim=False)  #real
@@ -107,7 +225,7 @@ if __name__ == '__main__':
     res = ur_control.play_program()
     rospy.loginfo("play_program: {}".format(res))
 
-    res = ur_control.set_speed_slider(0.12)
+    res = ur_control.set_speed_slider(0.3)
     rospy.loginfo("set_speed_slider: {}".format(res))
     rospy.sleep(1)
 
@@ -115,58 +233,181 @@ if __name__ == '__main__':
     rospy.loginfo('current pose[xyzxyzw]: \n{}'.format(ur_control.get_pose_list()))
     rospy.loginfo('current joint: \n{}'.format(ur_control.get_joint_pos_list()))
 
-    xyzquat = ur_control.get_pose_list()
-    T_baselink2tool = helper.xyzquat_to_mat44(xyzquat)
-    xyzrpy_deg = helper.mat44_to_xyzrpy_deg(T_baselink2tool)
-    xyzrpy = copy.deepcopy(xyzrpy_deg)
-    xyzrpy[3:] = np.deg2rad([-180,0,-45])
-    pose_goal = helper.mat44_to_xyzquat(helper.xyzrpy2mat44(xyzrpy))
-    ready_pos = [0.45, 0.4, 0.1, 0.9239015802541878, -0.3826301982273228, 3.707584038430941e-05, 5.8065731946048344e-06]
-    end_pos = [0.55, 0.3, 0.03, 0.9239015802541878, -0.3826301982273228, 3.707584038430941e-05, 5.8065731946048344e-06]
-    start_pos = [0.45, 0.4, 0.03, 0.9239015802541878, -0.3826301982273228, 3.707584038430941e-05, 5.8065731946048344e-06]
+    # # set the initial pos (i.e., origin of task frame)
+    # wpose = ur_control.get_pose_list()
+    # startx = wpose[0]
+    # starty = wpose[1]
+    # group_names = ur_control.robot.get_group_names()
+    # print("============ Robot Groups:", ur_control.robot.get_group_names())
+    # print("============ Printing robot state",robot.get_current_state())
+    initPtx = ur_control.group.get_current_pose().pose.position.x
+    initPty = ur_control.group.get_current_pose().pose.position.y
+    initPtz = ur_control.group.get_current_pose().pose.position.z # surface plane
+    # [one option] -0.45285332563724756,0.09539642989562534,0.09082724706215531
+    # initPtx = -0.45285332563724756
+    # initPty = 0.09539642989562534
+    # initPtz = 0.09082724706215531
+    # [one option] 
+    initPtx = -0.39906132750470524
+    initPty = 0.09771038592216241
+    initPtz = 0.09082724706215531
+    
+    # x positive/ x negative/ y positive/ y negative
+    xp = 0.23
+    xn = 0.45
+    yp = 0.22
+    yn = 0
+    
+    # limit of x,y (in world frame)
+    xmax = initPtx + yn
+    xmin = initPtx - yp
+    ymax = initPty + xp
+    ymin = initPty - xn
+    lim = [xmin, xmax, ymin, ymax]
+    # # set zero to the ft 300
+    zero_ft_sensor()
+    
+    # cal. each target
+    Lrang = 0.1
+    N = 2
+    theta_s = 10
+    delta_theta = (90 - theta_s)/N
+    saft_height = initPtz + 0.10
+    depth_rel = -0.05
+    depth= initPtz + depth_rel
+
+    # # go home pos
+    # ur_control.group.set_named_target('home')
+    # ur_control.group.go()
+    # rospy.sleep(1)
+
+    # # set joint goal
+    # joint_goal = ur_control.group.get_current_joint_values()
+    # joint_goal[0] = 0
+    # ur_control.group.go(joint_goal, wait=True)
+    # ur_control.group.stop()
+
+    # # work aroud the worksapce
+    # move_along_boundary(lim)
+
+    # # go the initial position
     waypoints = []
-    waypoints.append(helper.gen_pose(*ready_pos))
-    (plan, fraction) = ur_control.go_cartesian_path(waypoints)
-    waypoints = []
-    waypoints.append(helper.gen_pose(*start_pos))
-    (plan, fraction) = ur_control.go_cartesian_path(waypoints)
-    waypoints = []
-    waypoints.append(helper.gen_pose(*end_pos))
-    (plan, fraction) = ur_control.go_cartesian_path(waypoints)
-    waypoints = []
-    waypoints.append(helper.gen_pose(*ready_pos))
-    (plan, fraction) = ur_control.go_cartesian_path(waypoints)
+    wpose = ur_control.group.get_current_pose().pose
+    wpose.position.x = initPtx
+    wpose.position.y = initPty
+    wpose.position.z = saft_height
+    quater_init = tfs.quaternion_from_euler(0, np.pi, np.pi/2,'szyz')
+    wpose.orientation.x = quater_init[0]
+    wpose.orientation.y = quater_init[1]
+    wpose.orientation.z = quater_init[2]
+    wpose.orientation.w = quater_init[3]
+    waypoints.append(copy.deepcopy(wpose))
+    (plan, fraction) = ur_control.group.compute_cartesian_path(
+                                waypoints,   # waypoints to follow
+                                0.01,        # eef_step
+                                0.0)
+    ur_control.group.execute(plan, wait=True)
+
+    for i in range(2*N+1):
+        # current angle
+        theta_cur = theta_s + i* delta_theta
+        # current goal point (in task frame)
+        x_e_tskf = Lrang*math.cos(np.pi*theta_cur/180)
+        y_e_tskf = Lrang*math.sin(np.pi*theta_cur/180)
+        # current goal point (in world frame)
+        x_e_wldf = initPtx - y_e_tskf
+        y_e_wldf = initPty + x_e_tskf       
+
+        # check the coorrdinate limit
+        if checkCoorLimit([x_e_wldf, y_e_wldf], lim):
+            waypoints = []
+            wpose = ur_control.group.get_current_pose().pose
+            
+            # wpose.position.z += s
+            wpose.position.z += 0.10
+            waypoints.append(copy.deepcopy(wpose))
+
+            wpose.position.x = x_e_wldf
+            wpose.position.y = y_e_wldf
+            waypoints.append(copy.deepcopy(wpose))
+
+            # wpose.position.z = depth
+            wpose.position.z -= 0.1
+            waypoints.append(copy.deepcopy(wpose))
+
+            wpose.position.x = initPtx
+            wpose.position.y = initPty
+            waypoints.append(copy.deepcopy(wpose))
+
+            (plan, fraction) = ur_control.group.compute_cartesian_path(
+                                   waypoints,   # waypoints to follow
+                                   0.01,        # eef_step
+                                   0.0)
+            ur_control.group.execute(plan, wait=True)
+        else:
+            rospy.loginfo('out of the worksapce:\n{}'.format(x_e_wldf,y_e_wldf))
+            ur_control.group.stop()
 
 
-    JS_START =[0.4438713490962982, -1.3743627707110804, 1.543337345123291, 1.33539879322052, 1.5996168851852417, 2.806729793548584]
-    ur_control.go_to_joint_state(*JS_START)
-    # rotation matrix from box {b} to the robot {r}
-    elem = np.sqrt(2)/2
-    rRb = np.array([[elem, elem],
-                    [-elem, elem]])
-    lx = 0.28
-    ly = 0
-    forward_vec_b = np.array([lx, ly])
-    forward_vec_r = (np.dot(rRb, forward_vec_b)).tolist()
+    rospy.loginfo('shut down')
 
-    waypoints = []
-    # start pt1
-    start1_pose = [0.5285595797087597, 0.33286161521460467, 0.1501572777718378, -0.9219784480530051, 0.38460944184461326, 0.03746876472868755, 0.02504815840443044]
-    #start1_pose[2] -= 0.017
-    waypoints.append(helper.gen_pose(*start1_pose))
 
-    ur_control.go_to_pose_goal(helper.gen_pose(*start1_pose))
 
-    (plan, fraction) = ur_control.go_cartesian_path(waypoints)
-    rospy.loginfo('current pose[xyzxyzw]: \n{}'.format(ur_control.get_pose_list()))
-    if plan is None:
-        rospy.logerr('plan traj failed')
 
-    # end pt1
-    end1_pose = copy.deepcopy(start1_pose)
-    end1_pose[0] += forward_vec_r[0]
-    end1_pose[1] += forward_vec_r[1]
-    waypoints.append(helper.gen_pose(*end1_pose))
+    # xyzquat = ur_control.get_pose_list()
+    # T_baselink2tool = helper.xyzquat_to_mat44(xyzquat)
+    # xyzrpy_deg = helper.mat44_to_xyzrpy_deg(T_baselink2tool)
+    # xyzrpy = copy.deepcopy(xyzrpy_deg)
+    # xyzrpy[3:] = np.deg2rad([-180,0,-45])
+    # pose_goal = helper.mat44_to_xyzquat(helper.xyzrpy2mat44(xyzrpy))
+    # ready_pos = [0.45, 0.4, 0.1, 0.9239015802541878, -0.3826301982273228, 3.707584038430941e-05, 5.8065731946048344e-06]
+    # end_pos = [0.55, 0.3, 0.03, 0.9239015802541878, -0.3826301982273228, 3.707584038430941e-05, 5.8065731946048344e-06]
+    # start_pos = [0.45, 0.4, 0.03, 0.9239015802541878, -0.3826301982273228, 3.707584038430941e-05, 5.8065731946048344e-06]
+    # waypoints = []
+    # waypoints.append(helper.gen_pose(*ready_pos))
+    # (plan, fraction) = ur_control.go_cartesian_path(waypoints)
+    # waypoints = []
+    # waypoints.append(helper.gen_pose(*start_pos))
+    # (plan, fraction) = ur_control.go_cartesian_path(waypoints)
+    # waypoints = []
+    # waypoints.append(helper.gen_pose(*end_pos))
+    # (plan, fraction) = ur_control.go_cartesian_path(waypoints)
+    # waypoints = []
+    # waypoints.append(helper.gen_pose(*ready_pos))
+    # (plan, fraction) = ur_control.go_cartesian_path(waypoints)
+
+
+    # JS_START =[0.4438713490962982, -1.3743627707110804, 1.543337345123291, 1.33539879322052, 1.5996168851852417, 2.806729793548584]
+    # ur_control.go_to_joint_state(*JS_START)
+    # # rotation matrix from box {b} to the robot {r}
+    # elem = np.sqrt(2)/2
+    # rRb = np.array([[elem, elem],
+    #                 [-elem, elem]])
+    # lx = 0.28
+    # ly = 0
+    # forward_vec_b = np.array([lx, ly])
+    # forward_vec_r = (np.dot(rRb, forward_vec_b)).tolist()
+
+    # waypoints = []
+    # # start pt1
+    # start1_pose = [0.5285595797087597, 0.33286161521460467, 0.1501572777718378, -0.9219784480530051, 0.38460944184461326, 0.03746876472868755, 0.02504815840443044]
+    # #start1_pose[2] -= 0.017
+    # waypoints.append(helper.gen_pose(*start1_pose))
+
+    # ur_control.go_to_pose_goal(helper.gen_pose(*start1_pose))
+
+    # (plan, fraction) = ur_control.go_cartesian_path(waypoints)
+    # rospy.loginfo('current pose[xyzxyzw]: \n{}'.format(ur_control.get_pose_list()))
+    # if plan is None:
+    #     rospy.logerr('plan traj failed')
+
+    # # end pt1
+    # end1_pose = copy.deepcopy(start1_pose)
+    # end1_pose[0] += forward_vec_r[0]
+    # end1_pose[1] += forward_vec_r[1]
+    # waypoints.append(helper.gen_pose(*end1_pose))
+################################################################
+
 
     # # start pt2
     # lx = 0.0
@@ -195,25 +436,26 @@ if __name__ == '__main__':
     # end3_pose[1] += slide_vec_r[1]
     # waypoints.append(helper.gen_pose(*end3_pose))
 
-    rospy.loginfo("Start Loop ============================")
-    rate = rospy.Rate(30.0)
-    depth = 0
-    cnt = 0
+################################################################
+    # rospy.loginfo("Start Loop ============================")
+    # rate = rospy.Rate(30.0)
+    # depth = 0
+    # cnt = 0
 
-    # while not rospy.is_shutdown():
-    for i in range(100):
-        wpose = []
-        depth = -0.005 # 5mm deeper
-        for waypt in waypoints:
-            waypt.position.z += depth
-            wpose.append(copy.deepcopy(waypt))
+    # # while not rospy.is_shutdown():
+    # for i in range(100):
+    #     wpose = []
+    #     depth = -0.005 # 5mm deeper
+    #     for waypt in waypoints:
+    #         waypt.position.z += depth
+    #         wpose.append(copy.deepcopy(waypt))
 
-        (plan, fraction) = ur_control.go_cartesian_path(wpose)
-        rospy.loginfo('current pose[xyzxyzw]: \n{}'.format(ur_control.get_pose_list()))
-        if plan is None:
-            rospy.logerr('plan traj failed')
-            exit(0)
-
+    #     (plan, fraction) = ur_control.go_cartesian_path(wpose)
+    #     rospy.loginfo('current pose[xyzxyzw]: \n{}'.format(ur_control.get_pose_list()))
+    #     if plan is None:
+    #         rospy.logerr('plan traj failed')
+    #         exit(0)
+################################################################
 
     #
     # start1_pose = [0.2700405492584124, 0.37238332698040844, 0.07725913594747941, -0.2606191842360539, 0.6443504900377716, 0.25797526467862947, 0.671072909310314]
@@ -285,4 +527,4 @@ if __name__ == '__main__':
     # (plan, fraction) = ur_control.go_cartesian_path(initial_pose)
 
 
-    rospy.loginfo('shut down')
+    # rospy.loginfo('shut down')
