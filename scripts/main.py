@@ -396,20 +396,20 @@ if __name__ == '__main__':
             while not listener.read_finish_flag():
                 rospy.loginfo('Cur X: {}'.format(ur_control.group.get_current_pose().pose.position.x))
                 rospy.loginfo('Cur Y: {}'.format(ur_control.group.get_current_pose().pose.position.y))
-                while listener.get_force_val() is None:
+                if listener.get_force_val() is not None:
+                    # rospy.sleep(0.1)
+                    f_val = listener.get_force_val()
+                    f_dir = listener.get_force_dir()
+                    rospy.loginfo('Force Val( N ): {}'.format(f_val))
+                    rospy.loginfo('Force Dir(deg): {}'.format(f_dir))
+                    if f_val > f_safe:
+                        rospy.loginfo('==== Large Force Warning ==== \n')
+                        ur_control.group.stop()
+                        break
+                    with open('/home/zhangzeqing/test{}.csv'.format(i),'a',newline="\n")as f:
+                        f_csv = csv.writer(f)
+                        f_csv.writerow([f_val, f_dir])
                     rospy.sleep(0.1)
-                f_val = listener.get_force_val()
-                f_dir = listener.get_force_dir()
-                rospy.loginfo('Force Val( N ): {}'.format(f_val))
-                rospy.loginfo('Force Dir(deg): {}'.format(f_dir))
-                if f_val > f_safe:
-                    rospy.loginfo('==== Large Force Warning ==== \n')
-                    ur_control.group.stop()
-                    break
-                with open('/home/zhangzeqing/test{}.csv'.format(i),'a',newline="\n")as f:
-                    f_csv = csv.writer(f)
-                    f_csv.writerow([f_val, f_dir])
-                rospy.sleep(0.1)
 
             rospy.loginfo('Ref Dir(deg): {}'.format(theta_cur))
             rospy.loginfo('{}-th loop finished'.format(i))
