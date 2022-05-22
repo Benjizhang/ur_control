@@ -436,12 +436,20 @@ if __name__ == '__main__':
     
     # region: straight movement
     # initial (-0.5181971177386158, 0.2430201440263177, -0.0021684198900551316)
+    # contact point (-0.47321170688028935, -0.09287122585385203, -0.011764603861335071)
     waypoints = []
-    wpose.position.x = -0.5181971177386158
-    wpose.position.y = 0.2430201440263177-0.4
-    wpose.position.z = -0.0021684198900551316
+    wpose.position.x = -0.5181971177386158-0.1
+    wpose.position.y = 0.2430201440263177-0.5
+    wpose.position.z = -0.011764603861335071
     waypoints.append(copy.deepcopy(wpose))
+    (plan, fraction) = ur_control.group.compute_cartesian_path(
+                                waypoints,   # waypoints to follow
+                                0.01,        # eef_step
+                                0.0)
+    ur_control.group.execute(plan, wait=True)
+    
     # penetration    
+    waypoints = []
     wpose.position.z -= 0.03
     waypoints.append(copy.deepcopy(wpose))
     wpose.position.x += 0.01
@@ -463,10 +471,14 @@ if __name__ == '__main__':
     ur_control.group.execute(plan, wait=True)
     rospy.sleep(2)
 
-    # move left
+    # move right
     waypoints = []
-    wpose.position.y += 0.4
+    wpose.position.y += 0.5
     waypoints.append(copy.deepcopy(wpose))
+    # wpose.position.x += 0.2
+    # waypoints.append(copy.deepcopy(wpose))
+    # wpose.position.y -= 0.5
+    # waypoints.append(copy.deepcopy(wpose))
     (plan, fraction) = ur_control.group.compute_cartesian_path(
                                 waypoints,   # waypoints to follow
                                 0.01,        # eef_step
@@ -485,7 +497,7 @@ if __name__ == '__main__':
                 rospy.loginfo('==== Large Force Warning ==== \n')
                 ur_control.group.stop()
                 break
-            with open('/home/zhangzeqing/Nutstore Files/Nutstore/test_straight.csv','a',newline="\n")as f:
+            with open('/home/zhangzeqing/Nutstore Files/Nutstore/line_near_exp4.csv','a',newline="\n")as f:
                 f_csv = csv.writer(f)
                 f_csv.writerow([f_val, f_dir])
     
