@@ -325,7 +325,7 @@ if __name__ == '__main__':
     listener = listener()
     f_safe = 10
 
-    for j in range(10,11):
+    for j in range(1,10):
         #go the initial position
         waypoints = []
         wpose = ur_control.group.get_current_pose().pose
