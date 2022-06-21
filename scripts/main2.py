@@ -1,3 +1,8 @@
+# for 10 exp., where the probe slides along 5 angles in each exp.
+#
+# Z. Zhang
+# 06/22
+
 from cmath import cos
 import copy
 import threading
