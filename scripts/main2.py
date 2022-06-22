@@ -303,7 +303,7 @@ if __name__ == '__main__':
     theta_s = 30
     delta_theta = (90 - theta_s)/N
     saftz = initPtz + 0.10
-    delta_dep = -0.03
+    delta_dep = -0.05
     depthz = initPtz + delta_dep
 
     # # go home pos
@@ -324,8 +324,9 @@ if __name__ == '__main__':
     # bag = rosbag.Bag('force_val_dir.bag', 'w')
     listener = listener()
     f_safe = 10
+    flargeFlag = 0
 
-    for j in range(1,10):
+    for j in range(0,10):
         #go the initial position
         waypoints = []
         wpose = ur_control.group.get_current_pose().pose
@@ -378,18 +379,6 @@ if __name__ == '__main__':
                 waypoints = []
                 wpose.position.z = depthz
                 waypoints.append(copy.deepcopy(wpose))
-                # wpose.position.x += 0.01
-                # wpose.position.y += 0.01
-                # waypoints.append(copy.deepcopy(wpose))
-                # wpose.position.x -= 0.01
-                # wpose.position.y -= 0.01
-                # waypoints.append(copy.deepcopy(wpose))
-                # wpose.position.x -= 0.01
-                # wpose.position.y += 0.01
-                # waypoints.append(copy.deepcopy(wpose))
-                # wpose.position.x += 0.01
-                # wpose.position.y -= 0.01
-                # waypoints.append(copy.deepcopy(wpose))
                 (plan, fraction) = ur_control.group.compute_cartesian_path(
                                     waypoints,   # waypoints to follow
                                     0.01,        # eef_step
@@ -432,8 +421,9 @@ if __name__ == '__main__':
                         if f_val > f_safe:
                             rospy.loginfo('==== Large Force Warning ==== \n')
                             ur_control.group.stop()
+                            flargeFlag = 1
                             break
-                        with open('/home/zhangzeqing/Nutstore Files/Nutstore/zeroNormalVector4/{}/znv_exp{}.csv'.format(j+5,i),'a',newline="\n")as f:
+                        with open('/home/zhangzeqing/Nutstore Files/Nutstore/zeroNormalVector6/{}/znv_exp{}.csv'.format(j+1,i),'a',newline="\n")as f:
                             f_csv = csv.writer(f)
                             f_csv.writerow([f_val, f_dir, dist])
                         f.close()
@@ -447,7 +437,11 @@ if __name__ == '__main__':
             else:
                 rospy.loginfo('out of the worksapce:\n{}'.format(x_e_wldf,y_e_wldf))
                 ur_control.group.stop()
-
+            if flargeFlag == 1:
+                break
+        if flargeFlag == 1:
+            break
+    
     # lift up
     waypoints = []
     wpose = ur_control.group.get_current_pose().pose
