@@ -269,7 +269,10 @@ if __name__ == '__main__':
     # initPtx = -0.39906132750470524
     # initPty = 0.09771038592216241
     # initPtz = 0.09082724706215531
-    
+    # [one option] 
+    initPtx = -0.4865369575882814
+    initPty = -0.08797877559242727
+    initPtz = 0.07731254732208744 # -0.011764603861335071
     # x positive/ x negative/ y positive/ y negative
     xp = 0.23
     xn = 0.45
@@ -277,10 +280,14 @@ if __name__ == '__main__':
     yn = 0
     
     # limit of x,y (in world frame)
-    xmax = initPtx + yn
-    xmin = initPtx - yp
-    ymax = initPty + xp
-    ymin = initPty - xn
+    # xmax = initPtx + yn
+    # xmin = initPtx - yp
+    # ymax = initPty + xp
+    # ymin = initPty - xn
+    xmax = initPtx + 1
+    xmin = initPtx - 1
+    ymax = initPty + 1
+    ymin = initPty - 1
     lim = [xmin, xmax, ymin, ymax]
     # # set zero to the ft 300
     zero_ft_sensor()
@@ -291,8 +298,8 @@ if __name__ == '__main__':
     theta_s = 30
     delta_theta = (90 - theta_s)/N
     saftz = initPtz + 0.10
-    delta_dep = -0.05
-    depthz= initPtz + delta_dep
+    delta_dep = -0.03
+    depthz = initPtz + delta_dep
 
     # # go home pos
     # ur_control.group.set_named_target('home')
@@ -308,210 +315,224 @@ if __name__ == '__main__':
     # # work aroud the worksapce
     # move_along_boundary(lim)
 
-    # # go the initial position
-    waypoints = []
-    wpose = ur_control.group.get_current_pose().pose
-    wpose.position.x = initPtx
-    wpose.position.y = initPty
-    wpose.position.z = initPtz    
-    quater_init = tfs.quaternion_from_euler(0, np.pi, np.pi/2,'szyz')
-    wpose.orientation.x = quater_init[0]
-    wpose.orientation.y = quater_init[1]
-    wpose.orientation.z = quater_init[2]
-    wpose.orientation.w = quater_init[3]
-    waypoints.append(copy.deepcopy(wpose))
-    (plan, fraction) = ur_control.group.compute_cartesian_path(
-                                waypoints,   # waypoints to follow
-                                0.01,        # eef_step
-                                0.0)
-    ur_control.group.execute(plan, wait=True)
-
     # rosbag to record the force
     # bag = rosbag.Bag('force_val_dir.bag', 'w')
     listener = listener()
     f_safe = 10
 
-    #region： #experiment of 5 strokes    
-    # for i in range(2*N+1):
-    #     # current angle (deg)
-    #     theta_cur = theta_s + i* delta_theta
-    #     # current goal point (in task frame)
-    #     x_e_tskf = Lrang*math.cos(np.pi*theta_cur/180)
-    #     y_e_tskf = Lrang*math.sin(np.pi*theta_cur/180)
-    #     # current goal point (in world frame)
-    #     x_e_wldf = initPtx - y_e_tskf
-    #     y_e_wldf = initPty + x_e_tskf       
-
-    #     # check the coorrdinate limit
-    #     if checkCoorLimit([x_e_wldf, y_e_wldf], lim):
-    #         waypoints = []
-    #         wpose = ur_control.group.get_current_pose().pose
-    #         # lift up
-    #         wpose.position.z = saftz
-    #         # wpose.position.z += 0.10
-    #         waypoints.append(copy.deepcopy(wpose))
-    #         # move to the goal
-    #         wpose.position.x = x_e_wldf
-    #         wpose.position.y = y_e_wldf
-    #         waypoints.append(copy.deepcopy(wpose))
-
-    #         # penetration
-    #         wpose.position.z = depthz
-    #         # wpose.position.z -= 0.1
-    #         waypoints.append(copy.deepcopy(wpose))
-    #         wpose.position.x += 0.01
-    #         wpose.position.y += 0.01
-    #         waypoints.append(copy.deepcopy(wpose))
-    #         wpose.position.x -= 0.01
-    #         wpose.position.y -= 0.01
-    #         waypoints.append(copy.deepcopy(wpose))
-    #         wpose.position.x -= 0.01
-    #         wpose.position.y += 0.01
-    #         waypoints.append(copy.deepcopy(wpose))
-    #         wpose.position.x += 0.01
-    #         wpose.position.y -= 0.01
-    #         waypoints.append(copy.deepcopy(wpose))
-    #         (plan, fraction) = ur_control.group.compute_cartesian_path(
-    #                             waypoints,   # waypoints to follow
-    #                             0.01,        # eef_step
-    #                             0.0)
-    #         ur_control.group.execute(plan, wait=True)
-    #         ur_control.group.stop()
-    #         rospy.sleep(2)
-
-    #         # go to the object
-    #         waypoints = []
-    #         wpose.position.x = initPtx
-    #         wpose.position.y = initPty
-    #         waypoints.append(copy.deepcopy(wpose))
-    #         # # start to record the data from Ft300
-    #         (plan, fraction) = ur_control.group.compute_cartesian_path(
-    #                             waypoints,   # waypoints to follow
-    #                             0.01,        # eef_step
-    #                             0.0)
-    #         listener.clear_finish_flag()
-    #         zero_ft_sensor()
-    #         # ur_control.group.execute(plan, wait=True)
-    #         ur_control.group.execute(plan, wait=False)
-    #         rospy.loginfo('clear_finish_flag')
-    #         while not listener.read_finish_flag():
-    #             rospy.loginfo('Cur X: {}'.format(ur_control.group.get_current_pose().pose.position.x))
-    #             rospy.loginfo('Cur Y: {}'.format(ur_control.group.get_current_pose().pose.position.y))
-    #             if listener.get_force_val() is not None:
-    #                 # rospy.sleep(0.1)
-    #                 f_val = listener.get_force_val()
-    #                 f_dir = listener.get_force_dir()
-    #                 rospy.loginfo('Force Val( N ): {}'.format(f_val))
-    #                 rospy.loginfo('Force Dir(deg): {}'.format(f_dir))
-    #                 if f_val > f_safe:
-    #                     rospy.loginfo('==== Large Force Warning ==== \n')
-    #                     ur_control.group.stop()
-    #                     break
-    #                 with open('/home/zhangzeqing/test{}.csv'.format(i),'a',newline="\n")as f:
-    #                     f_csv = csv.writer(f)
-    #                     f_csv.writerow([f_val, f_dir])
-    #                 rospy.sleep(0.1)
-
-    #         rospy.loginfo('Ref Dir(deg): {}'.format(theta_cur))
-    #         rospy.loginfo('{}-th loop finished'.format(i))
-            
-    #         # ur_control.group.stop()
-    #         rospy.sleep(5)
-
-    #     else:
-    #         rospy.loginfo('out of the worksapce:\n{}'.format(x_e_wldf,y_e_wldf))
-    #         ur_control.group.stop()
-
-    # # lift up
-    # waypoints = []
-    # wpose = ur_control.group.get_current_pose().pose
-    # wpose.position.z = saftz
-    # waypoints.append(copy.deepcopy(wpose))
-    # (plan, fraction) = ur_control.group.compute_cartesian_path(
-    #                     waypoints,   # waypoints to follow
-    #                     0.01,        # eef_step
-    #                     0.0)
-    # ur_control.group.execute(plan, wait=True)    
-    #endregion
+    for j in range(10,11):
+        #go the initial position
+        waypoints = []
+        wpose = ur_control.group.get_current_pose().pose
+        wpose.position.x = initPtx
+        wpose.position.y = initPty
+        wpose.position.z = initPtz    
+        quater_init = tfs.quaternion_from_euler(0, np.pi, np.pi/2,'szyz')
+        wpose.orientation.x = quater_init[0]
+        wpose.orientation.y = quater_init[1]
+        wpose.orientation.z = quater_init[2]
+        wpose.orientation.w = quater_init[3]
+        waypoints.append(copy.deepcopy(wpose))
+        (plan, fraction) = ur_control.group.compute_cartesian_path(
+                                    waypoints,   # waypoints to follow
+                                    0.01,        # eef_step
+                                    0.0)
+        ur_control.group.execute(plan, wait=True)
     
-    # region: straight movement
-    # initial (-0.5181971177386158, 0.2430201440263177, -0.0021684198900551316)
-    # contact point (-0.47321170688028935, -0.09287122585385203, -0.011764603861335071)
-    waypoints = []
-    wpose.position.x = -0.5181971177386158-0.1
-    wpose.position.y = 0.2430201440263177-0.5
-    wpose.position.z = -0.011764603861335071
-    waypoints.append(copy.deepcopy(wpose))
-    (plan, fraction) = ur_control.group.compute_cartesian_path(
-                                waypoints,   # waypoints to follow
-                                0.01,        # eef_step
-                                0.0)
-    ur_control.group.execute(plan, wait=True)
     
-    # penetration    
-    waypoints = []
-    wpose.position.z -= 0.03
-    waypoints.append(copy.deepcopy(wpose))
-    wpose.position.x += 0.01
-    wpose.position.y += 0.01
-    waypoints.append(copy.deepcopy(wpose))
-    wpose.position.x -= 0.01
-    wpose.position.y -= 0.01
-    waypoints.append(copy.deepcopy(wpose))
-    wpose.position.x -= 0.01
-    wpose.position.y += 0.01
-    waypoints.append(copy.deepcopy(wpose))
-    wpose.position.x += 0.01
-    wpose.position.y -= 0.01
-    waypoints.append(copy.deepcopy(wpose))
-    (plan, fraction) = ur_control.group.compute_cartesian_path(
-                                waypoints,   # waypoints to follow
-                                0.01,        # eef_step
-                                0.0)
-    ur_control.group.execute(plan, wait=True)
-    rospy.sleep(2)
+        #region： #experiment of 5 strokes    
+        for i in range(2*N+1):
+            # current angle (deg)
+            theta_cur = theta_s + i* delta_theta
+            # current goal point (in task frame)
+            x_e_tskf = Lrang*math.cos(np.pi*theta_cur/180)
+            y_e_tskf = Lrang*math.sin(np.pi*theta_cur/180)
+            # current goal point (in world frame)
+            x_e_wldf = initPtx - x_e_tskf
+            y_e_wldf = initPty - y_e_tskf       
 
-    # move right
-    waypoints = []
-    wpose.position.y += 0.5
-    waypoints.append(copy.deepcopy(wpose))
-    # wpose.position.x += 0.2
-    # waypoints.append(copy.deepcopy(wpose))
-    # wpose.position.y -= 0.5
-    # waypoints.append(copy.deepcopy(wpose))
-    (plan, fraction) = ur_control.group.compute_cartesian_path(
-                                waypoints,   # waypoints to follow
-                                0.01,        # eef_step
-                                0.0)
-    listener.clear_finish_flag()
-    zero_ft_sensor()
-    ur_control.group.execute(plan, wait=False)
-    rospy.loginfo('clear_finish_flag')
-    while not listener.read_finish_flag():
-        if listener.get_force_val() is not None:
-            f_val = listener.get_force_val()
-            f_dir = listener.get_force_dir()
-            rospy.loginfo('Force Val( N ): {}'.format(f_val))
-            rospy.loginfo('Force Dir(deg): {}'.format(f_dir))
-            if f_val > f_safe:
-                rospy.loginfo('==== Large Force Warning ==== \n')
+            # check the coorrdinate limit
+            if checkCoorLimit([x_e_wldf, y_e_wldf], lim):
+                waypoints = []
+                wpose = ur_control.group.get_current_pose().pose
+                # lift up
+                wpose.position.z = saftz
+                # wpose.position.z += 0.10
+                waypoints.append(copy.deepcopy(wpose))
+                # move to the goal
+                wpose.position.x = x_e_wldf
+                wpose.position.y = y_e_wldf
+                waypoints.append(copy.deepcopy(wpose))
+                (plan, fraction) = ur_control.group.compute_cartesian_path(
+                                    waypoints,   # waypoints to follow
+                                    0.01,        # eef_step
+                                    0.0)
+                ur_control.group.execute(plan, wait=True)
+
+                # penetration
+                waypoints = []
+                wpose.position.z = depthz
+                waypoints.append(copy.deepcopy(wpose))
+                # wpose.position.x += 0.01
+                # wpose.position.y += 0.01
+                # waypoints.append(copy.deepcopy(wpose))
+                # wpose.position.x -= 0.01
+                # wpose.position.y -= 0.01
+                # waypoints.append(copy.deepcopy(wpose))
+                # wpose.position.x -= 0.01
+                # wpose.position.y += 0.01
+                # waypoints.append(copy.deepcopy(wpose))
+                # wpose.position.x += 0.01
+                # wpose.position.y -= 0.01
+                # waypoints.append(copy.deepcopy(wpose))
+                (plan, fraction) = ur_control.group.compute_cartesian_path(
+                                    waypoints,   # waypoints to follow
+                                    0.01,        # eef_step
+                                    0.0)
+                ur_control.group.execute(plan, wait=True)
                 ur_control.group.stop()
-                break
-            with open('/home/zhangzeqing/Nutstore Files/Nutstore/line_near_exp4.csv','a',newline="\n")as f:
-                f_csv = csv.writer(f)
-                f_csv.writerow([f_val, f_dir])
-    
-    # # lift up
+                rospy.sleep(2)
+
+                # go to the object
+                waypoints = []
+                wpose.position.x = initPtx
+                wpose.position.y = initPty
+                waypoints.append(copy.deepcopy(wpose))
+                # # start to record the data from Ft300
+                (plan, fraction) = ur_control.group.compute_cartesian_path(
+                                    waypoints,   # waypoints to follow
+                                    0.01,        # eef_step
+                                    0.0)
+                listener.clear_finish_flag()
+                zero_ft_sensor()
+                # ur_control.group.execute(plan, wait=True)
+                ur_control.group.execute(plan, wait=False)
+                rospy.loginfo('clear_finish_flag')
+                while not listener.read_finish_flag():
+                    rospy.loginfo('Cur X: {}'.format(ur_control.group.get_current_pose().pose.position.x))
+                    rospy.loginfo('Cur Y: {}'.format(ur_control.group.get_current_pose().pose.position.y))
+                    rospy.loginfo('Cur Z: {}'.format(ur_control.group.get_current_pose().pose.position.z))
+                    if listener.get_force_val() is not None:
+                        # rospy.sleep(0.1)
+                        # cal. the distance to the obj.
+                        ## cur pos.
+                        curx = ur_control.group.get_current_pose().pose.position.x
+                        cury = ur_control.group.get_current_pose().pose.position.y
+                        dist = np.sqrt((initPtx - curx)**2+(initPty - cury)**2)
+                        # measure the force val/dir
+                        f_val = listener.get_force_val()
+                        f_dir = listener.get_force_dir()
+                        rospy.loginfo('Force Val( N ): {}'.format(f_val))
+                        rospy.loginfo('Force Dir(deg): {}'.format(f_dir))
+                        if f_val > f_safe:
+                            rospy.loginfo('==== Large Force Warning ==== \n')
+                            ur_control.group.stop()
+                            break
+                        with open('/home/zhangzeqing/Nutstore Files/Nutstore/zeroNormalVector4/{}/znv_exp{}.csv'.format(j+5,i),'a',newline="\n")as f:
+                            f_csv = csv.writer(f)
+                            f_csv.writerow([f_val, f_dir, dist])
+                        f.close()
+
+                rospy.loginfo('Ref Dir(deg): {}'.format(theta_cur))
+                rospy.loginfo('{}-th loop finished'.format(i))
+                
+                # ur_control.group.stop()
+                rospy.sleep(3)
+
+            else:
+                rospy.loginfo('out of the worksapce:\n{}'.format(x_e_wldf,y_e_wldf))
+                ur_control.group.stop()
+
+    # lift up
     waypoints = []
     wpose = ur_control.group.get_current_pose().pose
-    wpose.position.z += 0.1
+    wpose.position.z = saftz
     waypoints.append(copy.deepcopy(wpose))
     (plan, fraction) = ur_control.group.compute_cartesian_path(
                         waypoints,   # waypoints to follow
                         0.01,        # eef_step
                         0.0)
-    ur_control.group.execute(plan, wait=True)
+    ur_control.group.execute(plan, wait=True)    
+    # endregion
+    
+    # region: straight movement
+    # # initial (-0.5181971177386158, 0.2430201440263177, -0.0021684198900551316)
+    # # contact point (-0.47321170688028935, -0.09287122585385203, -0.011764603861335071)
+    # waypoints = []
+    # wpose.position.x = -0.47321170688028935
+    # wpose.position.y = -0.09287122585385203
+    # wpose.position.z = -0.011764603861335071
+    # waypoints.append(copy.deepcopy(wpose))
+    # (plan, fraction) = ur_control.group.compute_cartesian_path(
+    #                             waypoints,   # waypoints to follow
+    #                             0.01,        # eef_step
+    #                             0.0)
+    # ur_control.group.execute(plan, wait=True)
+    
+    # # penetration    
+    # waypoints = []
+    # wpose.position.z -= 0.03
+    # waypoints.append(copy.deepcopy(wpose))
+    # wpose.position.x += 0.01
+    # wpose.position.y += 0.01
+    # waypoints.append(copy.deepcopy(wpose))
+    # wpose.position.x -= 0.01
+    # wpose.position.y -= 0.01
+    # waypoints.append(copy.deepcopy(wpose))
+    # wpose.position.x -= 0.01
+    # wpose.position.y += 0.01
+    # waypoints.append(copy.deepcopy(wpose))
+    # wpose.position.x += 0.01
+    # wpose.position.y -= 0.01
+    # waypoints.append(copy.deepcopy(wpose))
+    # (plan, fraction) = ur_control.group.compute_cartesian_path(
+    #                             waypoints,   # waypoints to follow
+    #                             0.01,        # eef_step
+    #                             0.0)
+    # ur_control.group.execute(plan, wait=True)
+    # rospy.sleep(2)
 
+    # # move right
+    # waypoints = []
+    # wpose.position.y += 0.5
+    # waypoints.append(copy.deepcopy(wpose))
+    # # wpose.position.x += 0.2
+    # # waypoints.append(copy.deepcopy(wpose))
+    # # wpose.position.y -= 0.5
+    # # waypoints.append(copy.deepcopy(wpose))
+    # (plan, fraction) = ur_control.group.compute_cartesian_path(
+    #                             waypoints,   # waypoints to follow
+    #                             0.01,        # eef_step
+    #                             0.0)
+    # listener.clear_finish_flag()
+    # zero_ft_sensor()
+    # ur_control.group.execute(plan, wait=False)
+    # rospy.loginfo('clear_finish_flag')
+    # while not listener.read_finish_flag():
+    #     if listener.get_force_val() is not None:
+    #         f_val = listener.get_force_val()
+    #         f_dir = listener.get_force_dir()
+    #         rospy.loginfo('Force Val( N ): {}'.format(f_val))
+    #         rospy.loginfo('Force Dir(deg): {}'.format(f_dir))
+    #         if f_val > f_safe:
+    #             rospy.loginfo('==== Large Force Warning ==== \n')
+    #             ur_control.group.stop()
+    #             break
+    #         with open('/home/zhangzeqing/Nutstore Files/Nutstore/line_near_exp4.csv','a',newline="\n")as f:
+    #             f_csv = csv.writer(f)
+    #             f_csv.writerow([f_val, f_dir])
+    
+    # # # lift up
+    # waypoints = []
+    # wpose = ur_control.group.get_current_pose().pose
+    # wpose.position.z += 0.1
+    # waypoints.append(copy.deepcopy(wpose))
+    # (plan, fraction) = ur_control.group.compute_cartesian_path(
+    #                     waypoints,   # waypoints to follow
+    #                     0.01,        # eef_step
+    #                     0.0)
+    # ur_control.group.execute(plan, wait=True)
+    # endregion
     rospy.loginfo('shut down')
 
 
