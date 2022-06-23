@@ -94,7 +94,9 @@ class MoveGroupPythonInteface(object):
 
         self.vel_scale = 0.15
         self.acc_scale = 0.15
-
+        
+        # a scaling factor of the maxiumum speed of each joint. 
+        # Note this is not the speed of the end effector point.
         self.group.set_max_velocity_scaling_factor(self.vel_scale)
         self.group.set_max_acceleration_scaling_factor(self.acc_scale)
 
