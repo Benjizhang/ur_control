@@ -326,6 +326,9 @@ if __name__ == '__main__':
     # folder name
     fd_name = 'safeFtest'
     isSaveForce = 0
+    # velocity limits setting
+    maxVelScale = 0.7
+    normalVelScale = 0.3
 
     listener = listener()
     
@@ -375,14 +378,17 @@ if __name__ == '__main__':
             waypoints.append(copy.deepcopy(wpose))
             (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
             ur_control.group.execute(plan, wait=True)
-
-            # move to the start point
+            
+            # move to the start point            
             wpose.position.x = x_s_wldf
             wpose.position.y = y_s_wldf
             waypoints.append(copy.deepcopy(wpose))
             # (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
+            if i != 0:
+                ur_control.set_speed_slider(maxVelScale)
             (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
             ur_control.group.execute(plan, wait=True)
+            ur_control.set_speed_slider(normalVelScale)
 
             # check the coorrdinate limit
             if checkCoorLimit([x_e_wldf, y_e_wldf], lim):               
