@@ -203,24 +203,16 @@ def move_along_boundary(lim):
     ur_control.group.stop()
 
 def emergency_stop(saftz):
-    # rospy.sleep(1)
-    # ur_control.group.stop()
-    rospy.loginfo('==== Emergency Stop ==== \n')   
-    # script=ur_control.speedl_control([0, 0, 0, 0, 0, 0], 0.5, 1)
-    # ur_control.script_pub.publish(script)  
-    script=ur_control.stopl_control(0.5)
+    rospy.loginfo('==== Emergency Stop ==== \n')
 
     # quick lift up ！！！！
     rospy.loginfo('==== Lift Up ({:.2f}) ==== \n'.format(saftz))
-    res = ur_control.set_speed_slider(0.3)
+    res = ur_control.set_speed_slider(0.2)
     waypoints = []
     wpose = ur_control.group.get_current_pose().pose
     wpose.position.z = saftz
     waypoints.append(copy.deepcopy(wpose))
-    (plan, fraction) = ur_control.group.compute_cartesian_path(
-                        waypoints,   # waypoints to follow
-                        0.01,        # eef_step
-                        0.0)
+    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
     ur_control.group.execute(plan, wait=True)   
     return True
 
@@ -324,7 +316,7 @@ if __name__ == '__main__':
     theta_s = 150
     delta_theta = 30
     
-    saftz = initPtz + 0.10
+    saftz = initPtz + 0.10 # +10cm
     # PENETRATION DEPTH
     PENE_DEPTH = 0.05 #(default: -0.03) # <<<<<<
     depthz = initPtz + PENE_DEPTH
@@ -333,7 +325,7 @@ if __name__ == '__main__':
     flargeFlag = 0
     # folder name
     fd_name = 'safeFtest'
-    isSaveForce = True
+    isSaveForce = 0
 
     listener = listener()
     
@@ -381,10 +373,7 @@ if __name__ == '__main__':
             wpose.position.z = saftz
             # wpose.position.z += 0.10
             waypoints.append(copy.deepcopy(wpose))
-            (plan, fraction) = ur_control.group.compute_cartesian_path(
-                                            waypoints,   # waypoints to follow
-                                            0.01,        # eef_step
-                                            0.0)
+            (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
             ur_control.group.execute(plan, wait=True)
 
             # move to the start point
@@ -402,10 +391,7 @@ if __name__ == '__main__':
                 waypoints = []
                 wpose.position.z = depthz
                 waypoints.append(copy.deepcopy(wpose))
-                (plan, fraction) = ur_control.group.compute_cartesian_path(
-                                    waypoints,   # waypoints to follow
-                                    0.01,        # eef_step
-                                    0.0)
+                (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
                 ur_control.group.execute(plan, wait=True)
                 ur_control.group.stop()
                 rospy.sleep(2)                
@@ -466,10 +452,7 @@ if __name__ == '__main__':
     wpose = ur_control.group.get_current_pose().pose
     wpose.position.z = saftz
     waypoints.append(copy.deepcopy(wpose))
-    (plan, fraction) = ur_control.group.compute_cartesian_path(
-                        waypoints,   # waypoints to follow
-                        0.01,        # eef_step
-                        0.0)
+    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
     ur_control.group.execute(plan, wait=True)    
     # endregion
     
