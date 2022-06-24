@@ -1,5 +1,6 @@
 # for 10 exp., where the probe slides along 5 angles in each exp.
 # Penetration Depth: 5cm # <<<<<<
+# for 'zeroNormalVector7D5.2' starting from -60deg to 60deg
 #
 # Z. Zhang
 # 06/22
