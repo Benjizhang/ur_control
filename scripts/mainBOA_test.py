@@ -7,14 +7,17 @@ from cmath import cos
 import copy
 import threading
 
-# import apriltag_ros.msg
 import numpy as np
 import rospy
 import tf
 import tf2_ros
 from geometry_msgs.msg import PoseArray, TransformStamped
 from std_msgs.msg import String
-from bayes_opt import BayesianOptimization
+from bayes_opt import BayesianOptimization, UtilityFunction
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib import mlab
+from matplotlib import gridspec
 
 import helper
 from tf import transformations as tfs
@@ -174,12 +177,208 @@ def emergency_stop(saftz):
     return True
 
 
+##--- BOA related codes ---##
+
+### unique_rows
+def unique_rows(a):
+    """
+    A functions to trim repeated rows that may appear when optimizing.
+    This is necessary to avoid the sklearn GP object from breaking
+
+    :param a: array to trim repeated rows from
+
+    :return: mask of unique rows
+    """
+
+    # Sort array and kep track of where things should go back to
+    order = np.lexsort(a.T)
+    reorder = np.argsort(order)
+
+    a = a[order]
+    diff = np.diff(a, axis=0)
+    ui = np.ones(len(a), 'bool')
+    ui[1:] = (diff != 0).any(axis=1)
+
+    return ui[reorder]
+
+### posterior
+def posterior(bo, X):
+    ur = unique_rows(bo._space.params)
+    bo._gp.fit(bo._space.params[ur], bo._space.target[ur])
+    mu, sigma2 = bo._gp.predict(X, return_std=True)
+    ac = util.utility(X, bo._gp, bo._space.target.max())
+
+    return mu, np.sqrt(sigma2), ac
+
+### plot_2d
+def plot_2d(name=None):
+    mu, s, ut = posterior(bo, XY)
+    fig, ax = plt.subplots(2, 2, figsize=(14, 10))
+    gridsize=150
+
+    # fig.suptitle('Bayesian Optimization in Action', fontdict={'size':30})
+
+    # GP regression output
+    ax[0][0].set_title('Gausian Process Predicted Mean', fontdict={'size':15})
+    im00 = ax[0][0].hexbin(x, y, C=mu, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=zmin, vmax=zmax)
+    ax[0][0].axis([x.min(), x.max(), y.min(), y.max()])
+    ax[0][0].plot(bo._space.params[:, 0], bo._space.params[:, 1], 'D', markersize=4, color='k', label='Observations')
+    ax[0][0].plot(xbd,ybd,'k-', lw=2, color='k')
+
+
+    ax[0][1].set_title('Target Function', fontdict={'size':15})
+    im10 = ax[0][1].hexbin(x, y, C=z, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=zmin, vmax=zmax)
+    ax[0][1].axis([x.min(), x.max(), y.min(), y.max()])
+    ax[0][1].plot(bo._space.params[:, 0], bo._space.params[:, 1], 'D', markersize=4, color='k')
+    ax[0][1].plot(xbd,ybd,'k-', lw=2, color='k')
+
+
+    ax[1][0].set_title('Gausian Process Variance', fontdict={'size':15})
+    im01 = ax[1][0].hexbin(x, y, C=s, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=0, vmax=1)
+    ax[1][0].axis([x.min(), x.max(), y.min(), y.max()])
+
+    ax[1][1].set_title('Acquisition Function', fontdict={'size':15})
+    im11 = ax[1][1].hexbin(x, y, C=ut, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=0, vmax=8)
+    print(ut)
+    maxVal_x = np.where(ut.reshape((300, 300)) == ut.max())[0]
+    maxVal_y = np.where(ut.reshape((300, 300)) == ut.max())[1]
+    print(np.where(ut.reshape((300, 300)) == ut.max()))
+    print(maxVal_x)
+    print(maxVal_y)
+
+    ax[1][1].plot([np.where(ut.reshape((300, 300)) == ut.max())[1]/50.,
+                   np.where(ut.reshape((300, 300)) == ut.max())[1]/50.],
+                  [0, 6],
+                  '-', lw=2, color='k')
+    # plt.show()
+
+    ax[1][1].plot([0, 6],
+                  [np.where(ut.reshape((300, 300)) == ut.max())[0]/50.,
+                   np.where(ut.reshape((300, 300)) == ut.max())[0]/50.],
+                  '-', lw=2, color='k')
+    # plt.show()
+
+    ax[1][1].axis([x.min(), x.max(), y.min(), y.max()])
+
+    for im, axis in zip([im00, im10, im01, im11], ax.flatten()):
+        cb = fig.colorbar(im, ax=axis)
+        # cb.set_label('Value')
+
+    if name is None:
+        name = '_'
+
+    plt.tight_layout()
+    plt.axis('equal')
+
+    # Save or show figure?
+    # fig.savefig('./figures/fourLine/'+'boa_eg_' + name + '.png')
+    plt.show()
+    plt.close(fig)
+
+### target
+def target(x, y):
+    a = np.exp(x+y-7)
+    b = np.exp(-x-y+5)
+    c = np.exp(-x+y-2)
+    d = np.exp(x-y-1)
+
+    return 4-(a+b+c+d)
+
+### inObj
+def inObj(ptx,pty):
+    seg_a = lambda x,y : x+y-7
+    seg_b = lambda x,y : -x-y+5
+    seg_c = lambda x,y : -x+y-2
+    seg_d = lambda x,y : x-y-1
+    if np.sign(seg_a(ptx,pty)) < 0 and np.sign(seg_b(ptx,pty)) < 0 and np.sign(seg_c(ptx,pty)) < 0 and np.sign(seg_d(ptx,pty)) < 0:
+        return True
+    else:
+        return False
+
+### gen_slide_path2
+def gen_slide_path2(endPt, startPt={'x':0,'y':0}, d_c = 0.1):
+    ex = list(endPt.values())[0]
+    ey = list(endPt.values())[1]
+    sx = list(startPt.values())[0]
+    sy = list(startPt.values())[1]
+    path_len = np.sqrt((ex-sx)**2+(ey-sy)**2)
+    num_pt = int((path_len//d_c)+ 1)
+    intptx = []
+    intpty = []
+    for i in range(num_pt-1):
+        s = i / (num_pt - 1)
+        curPtx = sx + s*(ex - sx)
+        curPty = sy + s*(ey - sy)
+        if not inObj(curPtx,curPty):
+            intptx.append(curPtx)
+            intpty.append(curPty)
+        else:
+            break
+    return intptx, intpty
+
+### set the distribution
+n = 1e5
+x = y = np.linspace(0, 6, 300)
+X, Y = np.meshgrid(x, y)
+Z = target(X, Y)
+x = X.ravel()
+y = Y.ravel()
+XY = np.vstack([x, y]).T
+z = target(x, y)
+
+zmin = -5
+zmax = 4
+print(min(z))
+print(max(z))
+fig, axis = plt.subplots(1, 1, figsize=(14, 10))
+gridsize=150
+
+im = axis.hexbin(x, y, C=z, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=zmin, vmax=zmax)
+axis.axis([x.min(), x.max(), y.min(), y.max()])
+
+cb = fig.colorbar(im, )
+cb.set_label('Value')
+# plot the boundary of box
+xbd = [3,4,2.5,1.5,3]
+ybd = [2,3,4.5,3.5,2]
+plt.plot(xbd,ybd,'k-', lw=2, color='k')
+axis.axis('equal')
+plt.show()
+
+# -------------- slide --------------
+bo = BayesianOptimization(target, {'x': (0, 6), 'y': (0, 6)})
+plt.ioff()
+util = UtilityFunction(kind="ei", 
+                    kappa = 2, 
+                    xi=0.5,
+                    kappa_decay=1,
+                    kappa_decay_delay=0)
+curPt = {'x':0,'y':0}
+for i in range(50):
+    nextPt = bo.suggest(util) # dict type
+    # generate the slide segment
+    intptx, intpty = gen_slide_path2(endPt=nextPt, startPt=curPt)
+    
+    # probe at these points (excluding start pt)
+    for i in range(len(intptx))[1:]:
+        # form the point in dict. type
+        probePt_dict = {'x':intptx[i],'y':intpty[i]}
+        probePtz = target(**probePt_dict)
+        bo.register(params=probePt_dict, target=probePtz)
+    
+    # probe goes to the nextPt
+    # curPt = copy.deepcopy(nextPt)
+    curPt = {'x':intptx[-1],'y':intpty[-1]}
+    plot_2d("{:03}".format(len(bo._space.params)))
+# ============== slide ==============
+
+##=== BOA related codes END ===##
+
 if __name__ == '__main__':
     rospy.init_node("test_move")
     moveit_commander.roscpp_initialize(sys.argv)
     # # ur_control.speedl_control([0, -0.1, 0, 0, 0, 0], 0.5, 2)
 
-    ################################################################
     ############# ur control #############
     # ur_control = MoveGroupPythonInteface(sim=True)  #simu
     ur_control = MoveGroupPythonInteface(sim=False)  #real
