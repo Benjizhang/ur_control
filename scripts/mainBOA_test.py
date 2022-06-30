@@ -223,14 +223,14 @@ def plot_2d(bo, name=None):
     im00 = ax[0][0].hexbin(x, y, C=mu, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=zmin, vmax=zmax)
     ax[0][0].axis([x.min(), x.max(), y.min(), y.max()])
     ax[0][0].plot(bo._space.params[:, 0], bo._space.params[:, 1], 'D', markersize=4, color='k', label='Observations')
-    ax[0][0].plot(xbd,ybd,'k-', lw=2, color='k')
+    # ax[0][0].plot(xbd,ybd,'k-', lw=2, color='k')
 
 
     ax[0][1].set_title('Target Function', fontdict={'size':15})
     im10 = ax[0][1].hexbin(x, y, C=z, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=zmin, vmax=zmax)
     ax[0][1].axis([x.min(), x.max(), y.min(), y.max()])
     ax[0][1].plot(bo._space.params[:, 0], bo._space.params[:, 1], 'D', markersize=4, color='k')
-    ax[0][1].plot(xbd,ybd,'k-', lw=2, color='k')
+    # ax[0][1].plot(xbd,ybd,'k-', lw=2, color='k')
 
 
     ax[1][0].set_title('Gausian Process Variance', fontdict={'size':15})
@@ -394,6 +394,37 @@ def gen_slide_path2(endPt, startPt={'x':0,'y':0}, d_c = 0.1):
 ##=== BOA related codes END ===##
 # endregion
 
+def plotInitSandBox(x,y,z):
+    # # move Origin to upper left corner
+    
+    ## initial distribution
+    # x = np.linspace(0, xp, 125)
+    # y = np.linspace(0, yp, 175)
+    # X, Y = np.meshgrid(x, y)
+    # x = X.ravel()
+    # y = Y.ravel()
+    # XY = np.vstack([x, y]).T
+    # z = 0*x
+
+    # plt.ion()
+    fig, axis = plt.subplots(1, 1)
+    axis.axis('scaled')
+    gridsize=88
+    im = axis.hexbin(y, x, C=z, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=0, vmax=SAFE_FORCE)
+    # plt.text(0.1,0.22,'star')
+    xmin, xmax, ymin, ymax = axis.axis([y.min(), y.max(), x.min(), x.max()])
+    axis.set_ylim(axis.get_ylim()[::-1]) 
+    axis.xaxis.tick_top()
+    axis.yaxis.tick_left()    
+    axis.set_xlabel('y')    
+    axis.xaxis.set_label_position('top')   
+    # plt.xlabel("y")
+    plt.ylabel("x")
+
+    cb = fig.colorbar(im, )
+    cb.set_label('Value')
+    plt.show()
+
 if __name__ == '__main__':
     rospy.init_node("test_move")
     moveit_commander.roscpp_initialize(sys.argv)
@@ -477,6 +508,27 @@ if __name__ == '__main__':
 
     listener = listener()
 
+    # BOA init.
+    bo = BayesianOptimization(f=None, pbounds={'x': (0, xp), 'y': (0, yp)},
+                        verbose=2,
+                        random_state=1)
+    plt.ioff()
+    util = UtilityFunction(kind="ei", 
+                        kappa = 2, 
+                        xi=0.2,
+                        kappa_decay=1,
+                        kappa_decay_delay=0)
+    curPt = {'x':0,'y':0}
+    ## initial distribution in BOA
+    x = np.linspace(0, xp, 125)
+    y = np.linspace(0, yp, 175)
+    X, Y = np.meshgrid(x, y)
+    x = X.ravel()
+    y = Y.ravel()
+    XY = np.vstack([x, y]).T
+    z = 0*x
+    plotInitSandBox(x,y,z)
+
     # go the initial position
     waypoints = []
     wpose = ur_control.group.get_current_pose().pose
@@ -512,17 +564,7 @@ if __name__ == '__main__':
     ur_control.group.execute(plan, wait=True)
     rospy.sleep(2)
 
-    # BOA init.
-    bo = BayesianOptimization(f=None, pbounds={'x': (0, xp), 'y': (0, yp)},
-                        verbose=2,
-                        random_state=1)
-    plt.ioff()
-    util = UtilityFunction(kind="ei", 
-                        kappa = 2, 
-                        xi=0.2,
-                        kappa_decay=1,
-                        kappa_decay_delay=0)
-    curPt = {'x':0,'y':0}
+    
 
     ## probe slides in the granular media
     for k in range(1,11):        
@@ -595,6 +637,7 @@ if __name__ == '__main__':
                         rospy.loginfo('BOA Pos x {:.3f}, y {:.3f}, Force {:.3f} N'.format(relx, rely, f_val))
 
             # probe at the goal
+            plot_2d(bo,"{:03}".format(len(bo._space.params)))
             rospy.sleep(1)
         else:
             rospy.loginfo('==== Out of Boundary ==== \n')
