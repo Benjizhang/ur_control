@@ -210,7 +210,7 @@ def emergency_stop(saftz):
 
     # quick lift up ！！！！
     rospy.loginfo('==== Lift Up ({:.2f}) ==== \n'.format(saftz))
-    res = ur_control.set_speed_slider(0.4)
+    res = ur_control.set_speed_slider(0.1)
     waypoints = []
     wpose = ur_control.group.get_current_pose().pose
     wpose.position.z = saftz
@@ -355,10 +355,10 @@ if __name__ == '__main__':
     LIFT_HEIGHT = +0.10 #(default: +0.10) # <<<<<<
     saftz = initPtz + LIFT_HEIGHT
     # PENETRATION DEPTH
-    PENE_DEPTH = 0.05 #(default: -0.03) # <<<<<<
+    PENE_DEPTH = -0.05 #(default: -0.03) # <<<<<<
     depthz = initPtz + PENE_DEPTH
     # SAFE FORCE
-    SAFE_FORCE = 3.0  #(default: 15)  <<<<<<
+    SAFE_FORCE = 5.0  #(default: 15N)  <<<<<<
     flargeFlag = 0
     # folder name
     fd_name = '20220709D5L25/data/' # <<<<<<
@@ -377,6 +377,13 @@ if __name__ == '__main__':
         sys.exit(1)
     
     ## go the initial position
+    waypoints = []
+    wpose = ur_control.group.get_current_pose().pose
+    wpose.position.z = saftz
+    waypoints.append(copy.deepcopy(wpose))
+    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
+    ur_control.group.execute(plan, wait=True)
+    
     waypoints = []
     wpose = ur_control.group.get_current_pose().pose
     wpose.position.x = initPtx
