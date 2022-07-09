@@ -210,9 +210,15 @@ def emergency_stop(saftz):
 
     # quick lift up ！！！！
     rospy.loginfo('==== Lift Up ({:.2f}) ==== \n'.format(saftz))
-    res = ur_control.set_speed_slider(0.1)
+    res = ur_control.set_speed_slider(0.01)
     waypoints = []
     wpose = ur_control.group.get_current_pose().pose
+    waypoints.append(copy.deepcopy(wpose))
+    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
+    ur_control.group.execute(plan, wait=True)
+
+    res = ur_control.set_speed_slider(0.4)
+    waypoints = []
     wpose.position.z = saftz
     waypoints.append(copy.deepcopy(wpose))
     (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
@@ -358,13 +364,13 @@ if __name__ == '__main__':
     PENE_DEPTH = -0.05 #(default: -0.03) # <<<<<<
     depthz = initPtz + PENE_DEPTH
     # SAFE FORCE
-    SAFE_FORCE = 5.0  #(default: 15N)  <<<<<<
+    SAFE_FORCE = 10.0  #(default: 15N)  <<<<<<
     flargeFlag = 0
     # folder name
     fd_name = '20220709D5L25/data/' # <<<<<<
     isSaveForce = 1           # <<<<<<
     # velocity limits setting
-    maxVelScale = 0.3 # <<<<<<
+    maxVelScale = 0.5 # <<<<<<
     normalVelScale = 0.3
 
     listener = listener()
