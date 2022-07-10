@@ -225,6 +225,26 @@ def emergency_stop(saftz):
     ur_control.group.execute(plan, wait=True)   
     return True
 
+def emergency_stop2(stop_pos, saftz):
+    rospy.loginfo('==== Emergency Stop ==== \n')
+
+    # quick lift up ！！！！
+    rospy.loginfo('==== Lift Up ({:.2f}) ==== \n'.format(saftz))
+    res = ur_control.set_speed_slider(0.01)
+    waypoints = []
+    # wpose = ur_control.group.get_current_pose().pose
+    waypoints.append(copy.deepcopy(stop_pos))
+    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
+    ur_control.group.execute(plan, wait=True)
+
+    res = ur_control.set_speed_slider(0.4)
+    waypoints = []
+    stop_pos.position.z = saftz
+    waypoints.append(copy.deepcopy(stop_pos))
+    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
+    ur_control.group.execute(plan, wait=True)   
+    return True
+
 def saftyCheckHard(lift_z,pene_z,safe_fd):
     checkLs = []
     LIFT_Z_MIN = 0.08 # 8 cm
@@ -478,15 +498,17 @@ if __name__ == '__main__':
                     if f_val is not None:         
                         rospy.loginfo('ForceVal (N): {}'.format(f_val))
                         # rospy.loginfo('Force Dir(deg): {}'.format(f_dir))
+                        cur_pos = ur_control.group.get_current_pose().pose
                         if np.round(f_val,6) > SAFE_FORCE:
                             rospy.loginfo('==== Large Force Warning ==== \n')
                             # emergency stop!!!
-                            flargeFlag = emergency_stop(saftz)   
+                            # flargeFlag = emergency_stop(saftz)                            
+                            flargeFlag = emergency_stop2(cur_pos,saftz)
                             break
 
                         ## cur pos
-                        curx = ur_control.group.get_current_pose().pose.position.x
-                        cury = ur_control.group.get_current_pose().pose.position.y
+                        curx = cur_pos.position.x
+                        cury = cur_pos.position.y
                         ## cal the move distance
                         dist = np.abs(cury - y_s_wldf)
                         rospy.loginfo('Distance (m): {}'.format(dist))
