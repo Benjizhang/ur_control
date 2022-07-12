@@ -505,6 +505,7 @@ if __name__ == '__main__':
                             # flargeFlag = emergency_stop(saftz)                            
                             # flargeFlag = emergency_stop2(cur_pos,saftz)
                             ur_control.group.stop()
+                            flargeFlag = True
                             break
 
                         ## cur pos
