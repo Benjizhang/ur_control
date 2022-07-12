@@ -388,7 +388,7 @@ if __name__ == '__main__':
     flargeFlag = 0
     # folder name
     fd_name = '20220709D5L25/data/' # <<<<<<
-    isSaveForce = 1           # <<<<<<
+    isSaveForce = 0           # <<<<<<
     # velocity limits setting
     maxVelScale = 0.5 # <<<<<<
     normalVelScale = 0.3
@@ -503,7 +503,8 @@ if __name__ == '__main__':
                             rospy.loginfo('==== Large Force Warning ==== \n')
                             # emergency stop!!!
                             # flargeFlag = emergency_stop(saftz)                            
-                            flargeFlag = emergency_stop2(cur_pos,saftz)
+                            # flargeFlag = emergency_stop2(cur_pos,saftz)
+                            ur_control.group.stop()
                             break
 
                         ## cur pos
