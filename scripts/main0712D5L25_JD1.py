@@ -375,12 +375,9 @@ if __name__ == '__main__':
     zero_ft_sensor()
     
 
-    Lrang = 0.15 # <<<<<<
-    N = 2
-    # theta_s = 30
-    # delta_theta = (90 - theta_s)/N
-    theta_s = 150
-    delta_theta = 30
+    Lrang = 0.3 # <<<<<<
+    ## position of buried objects
+    ds_obj = 0.26
     
     LIFT_HEIGHT = +0.10 #(default: +0.10) # <<<<<<
     saftz = initPtz + LIFT_HEIGHT
@@ -437,12 +434,7 @@ if __name__ == '__main__':
         #region： #experiment of 1 strokes    
         for i in range(1,2): #<<<<<<
             # current angle (deg)
-            # theta_cur = theta_s + i * delta_theta
             theta_cur = 90
-            # # current goal point (in task frame)
-            # x_e_tskf = Lrang*math.cos(np.pi*theta_cur/180)
-            # y_e_tskf = Lrang*math.sin(np.pi*theta_cur/180)
-            # current goal point (in world frame)
 
             ## list to record the df and ds
             df_ls = []
@@ -544,13 +536,16 @@ if __name__ == '__main__':
                                 flargeFlag = True
                                 ## plot fd_kf,fd_mean after the jamming detected
                                 if isPlotJD:
+                                    ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
                                     ## plot results
                                     pylab.figure(figsize=(10,5))  
-                                    pylab.title('Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff))
+                                    pylab.title('Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}, Adv {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff,ds_adv))
                                     pylab.plot(ds_ls,df_ls,'k+')     #观测值  
                                     pylab.plot(ds_ls,df_ls,'r-',label='noisy measurements')  #观测值 
                                     pylab.plot(ds_ls,fdhat,'b-',label='a posteri estimate')  #滤波估计值  
                                     pylab.plot(ds_ls,fdmean, color='y',label='mean')         #平均值 
+                                    pylab.axvline(ds_ls[-1],color='r',linestyle='--', label='jamming')
+                                    pylab.axvline(ds_obj,color='g',linestyle='--', label='object')
                                     pylab.legend()  
                                     pylab.xlabel('Distance (m)')  
                                     pylab.ylabel('Force (N)')
