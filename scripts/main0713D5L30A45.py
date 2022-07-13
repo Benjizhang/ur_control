@@ -342,7 +342,7 @@ if __name__ == '__main__':
 
     Lrang = 0.3 # <<<<<<
     ## position of buried objects
-    ds_obj = 0.26
+    ds_obj = 0.27
     
     LIFT_HEIGHT = +0.10 #(default: +0.10) # <<<<<<
     saftz = initPtz + LIFT_HEIGHT
