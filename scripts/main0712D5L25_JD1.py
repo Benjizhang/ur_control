@@ -569,9 +569,9 @@ if __name__ == '__main__':
                     pylab.figure(figsize=(10,5))  
                     pylab.title('Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff))
                     pylab.plot(ds_ls,df_ls,'k+')     #观测值  
-                    pylab.plot(ds_ls,df_ls,'r-',label='noisy measurements')  #观测值 
-                    pylab.plot(ds_ls,fdhat,'b-',label='a posteri estimate')  #滤波估计值  
-                    pylab.plot(ds_ls,fdmean, color='y',label='mean')         #平均值 
+                    pylab.plot(ds_ls,df_ls,'r-',label='noisy measurements')  #观测值
+                    pylab.plot(ds_ls[:len(fdhat)],fdhat,'b-',label='a posteri estimate')  #滤波估计值
+                    pylab.plot(ds_ls[:len(fdmean)],fdmean, color='y',label='mean')         #平均值
                     pylab.legend()  
                     pylab.xlabel('Distance (m)')  
                     pylab.ylabel('Force (N)')
