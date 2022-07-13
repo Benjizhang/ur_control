@@ -1,5 +1,5 @@
 # exp: probe slides (around) ~L25 cm along 0 deg 1 times in each exp.
-#      to the tilted buried object (angle 45 deg) until the force is large than the threshold
+#      to the tilted buried object (angle -45 deg) until the force is large than the threshold
 # Penetration Depth: D5cm # <<<<<<
 # W/ buried object
 # 
@@ -353,8 +353,8 @@ if __name__ == '__main__':
     SAFE_FORCE = 10.0  #(default: 15N) # <<<<<<
     flargeFlag = 0
     # folder name
-    fd_name = '20220713D5L30A45/data/' # <<<<<<
-    #fig_dir = '/home/zhangzeqing/Nutstore Files/Nutstore/20220713D5L30A45/fig'
+    fd_name = '20220713D5L30AN45/data/' # <<<<<<
+    #fig_dir = '/home/zhangzeqing/Nutstore Files/Nutstore/20220713D5L30AN45/fig'
     isSaveForce = 1           # <<<<<<
     # velocity limits setting
     maxVelScale = 0.5 # <<<<<<
