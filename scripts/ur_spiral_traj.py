@@ -34,7 +34,7 @@ import pylab
 from jamming_detector import jamming_detector1 as jd1
 from handle_drag_force import smooth_fd_kf, get_mean
 import robotiq_ft_sensor.srv
-from functions.spiralTraj import ur_spiralTraj
+from functions.drawTraj import ur_spiralTraj
 
 class listener():
     def __init__(self):
