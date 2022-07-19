@@ -3,6 +3,7 @@
 # Z. Zhang
 # 2022/7
 
+import time
 import copy
 import numpy as np
 from tf import transformations as tfs
@@ -29,9 +30,9 @@ def urSpiralTraj(ur_control):
         wpose.position.x = cent[0]+r*np.cos(theta+init_angle)
         wpose.position.y = cent[1]+r*np.sin(theta+init_angle)
         waypoints.append(copy.deepcopy(wpose))
-    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
+    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
     ur_control.group.execute(plan, wait=True)
-
+    time.sleep(0.5)
     return True
 
 def genOtraj(cent,radius,start_angle,end_angle):
@@ -60,9 +61,9 @@ def urOtraj(ur_control):
         wpose.position.x = x[k]
         wpose.position.y = y[k]
         waypoints.append(copy.deepcopy(wpose))
-    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
+    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
     ur_control.group.execute(plan, wait=True)
-
+    time.sleep(0.5)
     return True
 
 ## from current pos (circle center) to the given circle by the spiral trajectory
@@ -96,8 +97,9 @@ def urCent2Circle(ur_control,radius,numLoop2circle):
         x.append(wpose.position.x)
         y.append(wpose.position.y)
     
-    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
+    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
     ur_control.group.execute(plan, wait=True)
+    time.sleep(0.5)
     
     return x,y,cent
 
@@ -135,9 +137,10 @@ def urPt2Circle(ur_control,Ocent,radius,numLoop2circle):
         x.append(wpose.position.x)
         y.append(wpose.position.y)
     
-    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
+    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
     ur_control.group.execute(plan, wait=True)
-    
+    time.sleep(0.5)
+
     return x,y
 
 ## keep in given circle
@@ -168,8 +171,9 @@ def keepCircle(ur_control,Ocent,numLoop):
             x.append(wpose.position.x)
             y.append(wpose.position.y)
         
-        (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
+        (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
         ur_control.group.execute(plan, wait=True)
+        time.sleep(0.5)
 
         return x,y
     else:
@@ -218,9 +222,6 @@ def move_along_boundary(ur_control,lim):
     wpose.position.y = y_start
     waypoints.append(copy.deepcopy(wpose))
 
-    (plan, fraction) = ur_control.group.compute_cartesian_path(
-                                waypoints,   # waypoints to follow
-                                0.01,        # eef_step
-                                0.0)
+    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
     ur_control.group.execute(plan, wait=True)
     ur_control.group.stop()
