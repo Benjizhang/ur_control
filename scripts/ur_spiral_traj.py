@@ -34,7 +34,7 @@ import pylab
 from jamming_detector import jamming_detector1 as jd1
 from handle_drag_force import smooth_fd_kf, get_mean
 import robotiq_ft_sensor.srv
-from functions.drawTraj import ur_spiralTraj
+from functions.drawTraj import ur_spiralTraj,ur_Otraj
 
 class listener():
     def __init__(self):
@@ -401,7 +401,10 @@ if __name__ == '__main__':
                 ur_control.set_speed_slider(0.5)
                 zero_ft_sensor()
                 ## sprial traj.
-                ur_spiralTraj(ur_control)
+                # ur_spiralTraj(ur_control)
+
+                ## circle traj.
+                ur_Otraj(ur_control)
 
                 # go to the goal
                 ur_control.set_speed_slider(normalVelScale)
