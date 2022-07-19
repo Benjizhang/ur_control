@@ -30,11 +30,10 @@ import math
 import moveit_commander
 import sys
 import csv
-import pylab
 from jamming_detector import jamming_detector1 as jd1
 from handle_drag_force import smooth_fd_kf, get_mean
 import robotiq_ft_sensor.srv
-from functions.drawTraj import ur_spiralTraj,ur_Otraj
+from functions.drawTraj import urSpiralTraj,urOtraj,urCent2Circle,urPt2Circle,keepCircle
 from functions.saftyCheck import checkCoorLimit,saftyCheckHard
 
 class listener():
@@ -161,7 +160,7 @@ if __name__ == '__main__':
     LIFT_HEIGHT = +0.10 #(default: +0.10) # <<<<<<
     saftz = initPtz + LIFT_HEIGHT
     # PENETRATION DEPTH
-    PENE_DEPTH = -0.05 #(default: -0.03) # <<<<<<
+    PENE_DEPTH = +0.10  #(default: -0.03) # <<<<<<
     depthz = initPtz + PENE_DEPTH
     # SAFE FORCE
     SAFE_FORCE = 10.0  #(default: 15N) # <<<<<<
@@ -257,10 +256,20 @@ if __name__ == '__main__':
                 ur_control.set_speed_slider(0.5)
                 zero_ft_sensor()
                 ## sprial traj.
-                # ur_spiralTraj(ur_control)
+                # urSpiralTraj(ur_control)
 
                 ## circle traj.
-                ur_Otraj(ur_control)
+                # urOtraj(ur_control)
+
+                ## expand/shrink to the given cirlce by spiral traj.
+                radius = 0.04 # 3cm
+                numLoop2circle = 2
+                x,y,Ocent = urCent2Circle(ur_control,radius,3)
+
+                radius2 = 0.0
+                x2,y2 = urPt2Circle(ur_control,Ocent,radius2,3)
+
+                x3,y3 = keepCircle(ur_control,Ocent,3)
 
                 # go to the goal
                 ur_control.set_speed_slider(normalVelScale)
