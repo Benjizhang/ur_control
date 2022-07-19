@@ -1,10 +1,12 @@
-# UR follows the spiral trajectory
+# control ur following different trajectories
 # 
 # Z. Zhang
 # 2022/7
 
-import numpy as np
 import copy
+import numpy as np
+from tf import transformations as tfs
+
 
 def ur_spiralTraj(ur_control):
     waypoints = []
@@ -62,3 +64,51 @@ def ur_Otraj(ur_control):
     ur_control.group.execute(plan, wait=True)
 
     return True
+
+
+def move_along_boundary(ur_control,lim):
+    waypoints = []
+    wpose = ur_control.group.get_current_pose().pose
+    # record start pt
+    x_start = wpose.position.x
+    y_start = wpose.position.y
+    
+    # get vertical
+    quater_init = tfs.quaternion_from_euler(0, np.pi, np.pi/2,'szyz')
+    wpose.orientation.x = quater_init[0]
+    wpose.orientation.y = quater_init[1]
+    wpose.orientation.z = quater_init[2]
+    wpose.orientation.w = quater_init[3]
+    waypoints.append(copy.deepcopy(wpose))
+
+    xmin = lim[0]
+    xmax = lim[1]
+    ymin = lim[2]
+    ymax = lim[3]
+    # xmin, ymin
+    wpose.position.x = xmin
+    wpose.position.y = ymin
+    waypoints.append(copy.deepcopy(wpose))
+    # xmin, ymax
+    wpose.position.x = xmin
+    wpose.position.y = ymax
+    waypoints.append(copy.deepcopy(wpose))
+    # xmax, ymax
+    wpose.position.x = xmax
+    wpose.position.y = ymax
+    waypoints.append(copy.deepcopy(wpose))
+    # xmax, ymin
+    wpose.position.x = xmax
+    wpose.position.y = ymin
+    waypoints.append(copy.deepcopy(wpose))
+    # go back
+    wpose.position.x = x_start
+    wpose.position.y = y_start
+    waypoints.append(copy.deepcopy(wpose))
+
+    (plan, fraction) = ur_control.group.compute_cartesian_path(
+                                waypoints,   # waypoints to follow
+                                0.01,        # eef_step
+                                0.0)
+    ur_control.group.execute(plan, wait=True)
+    ur_control.group.stop()

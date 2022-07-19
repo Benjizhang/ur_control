@@ -35,6 +35,7 @@ from jamming_detector import jamming_detector1 as jd1
 from handle_drag_force import smooth_fd_kf, get_mean
 import robotiq_ft_sensor.srv
 from functions.drawTraj import ur_spiralTraj,ur_Otraj
+from functions.saftyCheck import checkCoorLimit,saftyCheckHard
 
 class listener():
     def __init__(self):
@@ -101,151 +102,6 @@ def zero_ft_sensor():
     except rospy.ServiceException as e:
         print("Service call failed: %s"%e)
 
-# check whether in the limit 
-def checkCoorLimit(pos, lim):
-    curx = pos[0]
-    cury = pos[1]
-    if curx >= lim[0] and curx <= lim[1] and \
-        cury >= lim[2] and cury <= lim[3]:
-        return True
-    else: return False
-
-def getXYwld_from_tsk(tansl, xy_tsk):
-    # fixed orientation of two frames
-    Rot_tsk_to_wld = np.mat([[0, -1],[1, 0]])
-    tanslation_column = np.reshape(tansl,(2,1))
-    xy_tsk_column = np.reshape(xy_tsk,(2,1))
-    xy_wld = tansl+Rot_tsk_to_wld*xy_tsk_column
-    return xy_wld 
-
-def move_along_boundary(lim):
-    waypoints = []
-    wpose = ur_control.group.get_current_pose().pose
-    # record start pt
-    x_start = wpose.position.x
-    y_start = wpose.position.y
-    
-    # get vertical
-    quater_init = tfs.quaternion_from_euler(0, np.pi, np.pi/2,'szyz')
-    wpose.orientation.x = quater_init[0]
-    wpose.orientation.y = quater_init[1]
-    wpose.orientation.z = quater_init[2]
-    wpose.orientation.w = quater_init[3]
-    waypoints.append(copy.deepcopy(wpose))
-
-    xmin = lim[0]
-    xmax = lim[1]
-    ymin = lim[2]
-    ymax = lim[3]
-    # xmin, ymin
-    wpose.position.x = xmin
-    wpose.position.y = ymin
-    waypoints.append(copy.deepcopy(wpose))
-    # xmin, ymax
-    wpose.position.x = xmin
-    wpose.position.y = ymax
-    waypoints.append(copy.deepcopy(wpose))
-    # xmax, ymax
-    wpose.position.x = xmax
-    wpose.position.y = ymax
-    waypoints.append(copy.deepcopy(wpose))
-    # xmax, ymin
-    wpose.position.x = xmax
-    wpose.position.y = ymin
-    waypoints.append(copy.deepcopy(wpose))
-    # go back
-    wpose.position.x = x_start
-    wpose.position.y = y_start
-    waypoints.append(copy.deepcopy(wpose))
-
-    (plan, fraction) = ur_control.group.compute_cartesian_path(
-                                waypoints,   # waypoints to follow
-                                0.01,        # eef_step
-                                0.0)
-    ur_control.group.execute(plan, wait=True)
-    ur_control.group.stop()
-
-def emergency_stop(saftz):
-    rospy.loginfo('==== Emergency Stop ==== \n')
-
-    # quick lift up ！！！！
-    rospy.loginfo('==== Lift Up ({:.2f}) ==== \n'.format(saftz))
-    res = ur_control.set_speed_slider(0.01)
-    waypoints = []
-    wpose = ur_control.group.get_current_pose().pose
-    waypoints.append(copy.deepcopy(wpose))
-    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
-    ur_control.group.execute(plan, wait=True)
-
-    res = ur_control.set_speed_slider(0.4)
-    waypoints = []
-    wpose.position.z = saftz
-    waypoints.append(copy.deepcopy(wpose))
-    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
-    ur_control.group.execute(plan, wait=True)   
-    return True
-
-def emergency_stop2(stop_pos, saftz):
-    rospy.loginfo('==== Emergency Stop ==== \n')
-
-    # quick lift up ！！！！
-    rospy.loginfo('==== Lift Up ({:.2f}) ==== \n'.format(saftz))
-    res = ur_control.set_speed_slider(0.01)
-    waypoints = []
-    # wpose = ur_control.group.get_current_pose().pose
-    waypoints.append(copy.deepcopy(stop_pos))
-    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
-    ur_control.group.execute(plan, wait=True)
-
-    res = ur_control.set_speed_slider(0.4)
-    waypoints = []
-    stop_pos.position.z = saftz
-    waypoints.append(copy.deepcopy(stop_pos))
-    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
-    ur_control.group.execute(plan, wait=True)   
-    return True
-
-def saftyCheckHard(lift_z,pene_z,safe_fd):
-    checkLs = []
-    LIFT_Z_MIN = 0.08 # 8 cm
-    LIFT_Z_MAX = 0.20 # 20 cm
-    PENE_Z_MIN = 0.   # 0 cm
-    PENE_Z_MAX = 0.06 # 6 cm
-    FORCE_MAX  = 15 # 15 N
-
-    ## check sign
-    if np.sign(lift_z) == 1:
-        checkLs.append(True)
-    else: 
-        return False
-    
-    ## check the lift-up height bounds
-    if round(lift_z,6) >= LIFT_Z_MIN and round(lift_z,6) <= LIFT_Z_MAX:
-        checkLs.append(True)
-    else: 
-        return False
-    ## check the penetration depth bounds
-    if np.sign(pene_z) == 1 and np.abs(round(pene_z,6)) <= LIFT_Z_MAX:
-        checkLs.append(True)
-    elif np.sign(pene_z) != 1 and np.abs(round(pene_z,6)) <= PENE_Z_MAX:
-        checkLs.append(True)
-    else: 
-        return False
-    
-    ## check the safe force threshold
-    if np.sign(safe_fd) == 1 and np.abs(round(safe_fd,6)) <= FORCE_MAX:
-        checkLs.append(True)
-    else: 
-        return False
-    
-    ## CAN add other checking items
-
-    ## General safety: return safe if all items are True
-    if all(checkLs):
-        return True
-    else: 
-        return False
-
 
 if __name__ == '__main__':
     rospy.init_node("test_move")
@@ -298,7 +154,7 @@ if __name__ == '__main__':
     zero_ft_sensor()
     
 
-    Lrang = 0.3 # <<<<<<
+    Lrang = 0.2 # <<<<<<
     ## position of buried objects
     ds_obj = 0.27
     
@@ -313,7 +169,7 @@ if __name__ == '__main__':
     # folder name
     fd_name = 'ur_spiral_traj/data/' # <<<<<<
     #fig_dir = '/home/zhangzeqing/Nutstore Files/Nutstore/ur_spiral_traj/fig'
-    isSaveForce = 1           # <<<<<<
+    isSaveForce = 0           # <<<<<<
     # velocity limits setting
     maxVelScale    = 0.3 # <<<<<<
     normalVelScale = 0.1 # <<<<<<
@@ -433,14 +289,6 @@ if __name__ == '__main__':
                         ds_ls.append(dist)
                         # rospy.loginfo('ForceVal (N): {}'.format(f_val))
                         # rospy.loginfo('Distance (m): {}'.format(dist))
-
-                        ## log (internal)
-                        # if isSaveForce ==  1:
-                        #     ## start to record the data from Ft300
-                        #     with open('/home/zhangzeqing/Nutstore Files/Nutstore/{}/znv_exp{}.csv'.format(fd_name,1*(j-1)+i),'a',newline="\n")as f:
-                        #         f_csv = csv.writer(f) # <<<<<<
-                        #         f_csv.writerow([np.round(f_val,6), np.round(f_dir,6), np.round(dist,6)])
-                        #     f.close()  
 
                         ## most conservative way (most safe)
                         if np.round(f_val,6) > SAFE_FORCE:
