@@ -29,7 +29,6 @@ from control_msgs.msg import FollowJointTrajectoryActionResult as rlst
 import math
 import moveit_commander
 import sys
-# sys.path.append("/home/zhangzeqing/ur5_ws/src/ur_control")
 import csv
 import pylab
 from jamming_detector import jamming_detector1 as jd1
@@ -39,53 +38,10 @@ from functions.spiralTraj import ur_spiralTraj
 
 class listener():
     def __init__(self):
-        # self.tfb = tf.TransformBroadcaster()
-        # self.stfb = tf2_ros.StaticTransformBroadcaster()
-        # listener = tf.TransformListener()
-        #
-        # # Get static tf
-        # listener.waitForTransform('base', 'base_link', rospy.Time(0), rospy.Duration(1))
-        # tr_base2baselink = listener.lookupTransform('base', 'base_link', rospy.Time(0))
-        # tf_base2baselink = listener.fromTranslationRotation(*tr_base2baselink)
-        # self.tf_base2baselink = tf_base2baselink
-        #
-        # listener.waitForTransform('base_link', 'camera', rospy.Time(0), rospy.Duration(1))
-        # tr_baselink2camera = listener.lookupTransform('base_link', 'camera', rospy.Time(0))
-        # tf_baselink2camera = listener.fromTranslationRotation(*tr_baselink2camera)
-        # self.tf_baselink2cam = tf_baselink2camera
-        #
-        # self.tf_ee2tool = helper.xyzrpy2mat44([0.09, 0, 0, np.deg2rad([-90, 0, -90])])
-        # self.tf_tool2ee = np.linalg.inv(self.tf_ee2tool)
-        #
-        # xyzquat = helper.mat44_to_xyzquat(self.tf_ee2tool)
-        # static_transformStamped = TransformStamped()
-        # static_transformStamped.header.stamp = rospy.Time.now()
-        # static_transformStamped.header.frame_id = 'ee_link'
-        # static_transformStamped.child_frame_id = 'tool_vacuum'
-        # static_transformStamped.transform.translation.x=xyzquat[0]
-        # static_transformStamped.transform.translation.y=xyzquat[1]
-        # static_transformStamped.transform.translation.z=xyzquat[2]
-        # static_transformStamped.transform.rotation.x=xyzquat[3]
-        # static_transformStamped.transform.rotation.y=xyzquat[4]
-        # static_transformStamped.transform.rotation.z=xyzquat[5]
-        # static_transformStamped.transform.rotation.w=xyzquat[6]
-        # self.stfb.sendTransform(static_transformStamped)
-        #
-        # self.tf_listener = listener
-
-        # self.count = 0
-
-        # self.plot_pub = rospy.Publisher("plot", geometry_msgs.msg.PointStamped, queue_size=2)
-
-        # ns = '/obj_detect/'
+        
         self.obj_pose_sub = rospy.Subscriber("robotiq_ft_sensor", ft_sensor, self.detect_callbak, queue_size=1)
         self.result_status = rospy.Subscriber("/scaled_pos_joint_traj_controller/follow_joint_trajectory/result",rlst,self.callback, queue_size=1)
         self.lock_read = threading.Lock()
-        # self.run_flag = False
-        # self.gripper_pos = 80   # !!!!!!!!!!! Default grip pos
-        # self.chat_sub = rospy.Subscriber("/debug_chat", String, self.chat_callbak, queue_size=1)
-        # self.posearray_sub = rospy.Subscriber("/objpose", PoseArray, self.pose_callbak, queue_size=2)
-        # self.pose_array=None
         self.sensor_data = None
         self.force_val = None
         self.force_dir = None
@@ -319,7 +275,7 @@ if __name__ == '__main__':
     initPtz = ur_control.group.get_current_pose().pose.position.z # surface plane
     initPtx = -0.5931848696000094
     initPty = -0.28895797651231064
-    initPtz = 0.07731254732208744 
+    initPtz = 0.07731254732208744
     # [one option] 
     # initPtx = 
     # initPty = 
@@ -349,7 +305,7 @@ if __name__ == '__main__':
     LIFT_HEIGHT = +0.10 #(default: +0.10) # <<<<<<
     saftz = initPtz + LIFT_HEIGHT
     # PENETRATION DEPTH
-    PENE_DEPTH = 0.05 #(default: -0.03) # <<<<<<
+    PENE_DEPTH = -0.05 #(default: -0.03) # <<<<<<
     depthz = initPtz + PENE_DEPTH
     # SAFE FORCE
     SAFE_FORCE = 10.0  #(default: 15N) # <<<<<<
@@ -429,33 +385,8 @@ if __name__ == '__main__':
             wpose.position.y = y_s_wldf
             waypoints.append(copy.deepcopy(wpose))            
             (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
-            ur_control.group.execute(plan, wait=True)   
-
-            # waypoints = []
-            # wpose = ur_control.group.get_current_pose().pose
-            # ## spiral trajectory
-            # ### (r,theta): r = a+b*theta
-            # xx = []
-            # yy = []
-            # a = 0
-            # b = 0.01/(2*np.pi) # 360 deg for moving left 1cm distance 
-            # cent = [wpose.position.x, wpose.position.y]
-            # init_angle = np.pi/2
-            # end_angle = 6*np.pi + np.pi
-            # # 10 steps for 180 deg
-            # num_anlge = int(10*(end_angle/(np.pi)))
-            # for theta in np.linspace(0,end_angle,num_anlge):
-            #     r = a+b*theta
-            #     # xx.append(cent[0]+r*np.cos(theta+init_angle))
-            #     # yy.append(cent[1]+r*np.sin(theta+init_angle))                
-            #     wpose.position.x = cent[0]+r*np.cos(theta+init_angle)
-            #     wpose.position.y = cent[1]+r*np.sin(theta+init_angle)
-            #     waypoints.append(copy.deepcopy(wpose))
-            # (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
-            # ur_control.group.execute(plan, wait=True)
-            ur_spiralTraj(ur_control)
-                
-
+            ur_control.group.execute(plan, wait=True)
+            
             ## check the coorrdinate limit
             if checkCoorLimit([x_e_wldf, y_e_wldf], lim):
                 ## penetration
@@ -465,10 +396,15 @@ if __name__ == '__main__':
                 (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
                 ur_control.group.execute(plan, wait=True)
                 ur_control.group.stop()
-                rospy.sleep(2)                
+                rospy.sleep(2)                          
 
-                ur_control.set_speed_slider(normalVelScale)
+                ur_control.set_speed_slider(0.5)
+                zero_ft_sensor()
+                ## sprial traj.
+                ur_spiralTraj(ur_control)
+
                 # go to the goal
+                ur_control.set_speed_slider(normalVelScale)
                 waypoints = []
                 wpose.position.x = x_e_wldf
                 wpose.position.y = y_e_wldf

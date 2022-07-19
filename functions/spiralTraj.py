@@ -14,7 +14,7 @@ def ur_spiralTraj(ur_control):
     xx = []
     yy = []
     a = 0
-    b = 0.01/(2*np.pi) # 360 deg for moving left 1cm distance 
+    b = 0.01/(2*np.pi) # 360 deg for moving 1cm distance 
     cent = [wpose.position.x, wpose.position.y]
     init_angle = np.pi/2
     end_angle = 6*np.pi + np.pi
