@@ -154,7 +154,7 @@ def keepCircle(ur_control,Ocent,numLoop):
 
 
     radius = np.sqrt((Ocent[0]-curx)**2+(Ocent[1]-cury)**2)
-    if round(radius,6) != 0:
+    if round(radius,3) != 0:
         init_angle = np.arctan2(cury-Ocent[1],curx-Ocent[0])
         end_angle = 2*np.pi*numLoop
         # 36 segments for 180 deg
