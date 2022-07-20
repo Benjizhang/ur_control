@@ -619,6 +619,34 @@ class MoveGroupPythonInteface(object):
     # End UR APIs -------------------------------------------------------------
     # -------------------------------------------------------------------------
 
+## go to the (default) initial pose (pos+ori)
+def go2initPose(ur_control,saftz):
+    initPtx = -0.5931848696000094
+    initPty = -0.28895797651231064
+    initPtz = 0.07731254732208744
+
+    ## lift up to the safe height
+    waypoints = []
+    wpose = ur_control.group.get_current_pose().pose
+    wpose.position.z = saftz
+    waypoints.append(copy.deepcopy(wpose))
+
+    ## go the initial position    
+    wpose.position.x = initPtx
+    wpose.position.y = initPty
+    waypoints.append(copy.deepcopy(wpose))
+    wpose.position.z = initPtz    
+    quater_init = tfs.quaternion_from_euler(0, np.pi, np.pi/2,'szyz')
+    wpose.orientation.x = quater_init[0]
+    wpose.orientation.y = quater_init[1]
+    wpose.orientation.z = quater_init[2]
+    wpose.orientation.w = quater_init[3]
+    waypoints.append(copy.deepcopy(wpose))
+    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+    ur_control.group.execute(plan, wait=True)
+    rospy.sleep(0.5)
+
+    print('***** Exp Initialized Successfully *****')    
 
 if __name__ == '__main__':
     rospy.init_node("test_move")
@@ -631,6 +659,7 @@ if __name__ == '__main__':
     rospy.loginfo('current joint: \n{}'.format(ur_control.get_joint_pos_list()))
     rospy.loginfo('shut down')
 
+# region
 # ret = ur_control.add_basebox()
 # rospy.loginfo('add_basebox: ' + str(ret))
 # ret = ur_control.attach_basebox()
@@ -716,3 +745,4 @@ if __name__ == '__main__':
 # rospy.sleep(1)
 
 # (plan, fraction) = plan_cartesian_path(ur_control, goal_pose)
+# endregion

@@ -22,7 +22,7 @@ from std_msgs.msg import String
 
 from tf import transformations as tfs
 from functions.scene_helper import zero_ft_sensor
-from functions.ur_move import MoveGroupPythonInteface
+from functions.ur_move import MoveGroupPythonInteface,go2initPose
 from robotiq_ft_sensor.msg import ft_sensor
 from control_msgs.msg import FollowJointTrajectoryActionResult as rlst
 import math
@@ -170,26 +170,8 @@ if __name__ == '__main__':
         print('!!!!! Safety Check Failed !!!!!')
         sys.exit(1)
     
-    ## go the initial position
-    waypoints = []
-    wpose = ur_control.group.get_current_pose().pose
-    wpose.position.z = saftz
-    waypoints.append(copy.deepcopy(wpose))
-    wpose.position.x = initPtx
-    wpose.position.y = initPty
-    waypoints.append(copy.deepcopy(wpose))
-    wpose.position.z = initPtz    
-    quater_init = tfs.quaternion_from_euler(0, np.pi, np.pi/2,'szyz')
-    wpose.orientation.x = quater_init[0]
-    wpose.orientation.y = quater_init[1]
-    wpose.orientation.z = quater_init[2]
-    wpose.orientation.w = quater_init[3]
-    waypoints.append(copy.deepcopy(wpose))
-    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
-    ur_control.group.execute(plan, wait=True)
-    print('***** Exp Initialized Successfully *****')
-    rospy.sleep(0.5)
-
+    ## go the (default) initial position
+    go2initPose(ur_control,saftz)
     
     ## start the loop
     for j in range(1,21): # <<<<<<
