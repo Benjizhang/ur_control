@@ -21,7 +21,7 @@ import ur_dashboard_msgs.srv
 import ur_msgs.msg
 import ur_msgs.srv
 
-import helper
+from functions import helper
 
 DEF_TOPIC_HW = 'ur_hardware_interface'
 dashboard_srv_prefix = DEF_TOPIC_HW + '/dashboard/'

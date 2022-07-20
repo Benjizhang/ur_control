@@ -1,5 +1,7 @@
 import math
 import numpy as np
+import rospy
+import robotiq_ft_sensor.srv
 
 import geometry_msgs.msg
 from tf.transformations import quaternion_from_euler
@@ -124,3 +126,13 @@ def setup_scene(self):
     # add_conveyer(self)
     # add_camerabox(self)
     add_gripper(self)
+
+def zero_ft_sensor():
+    srv_name = '/robotiq_ft_sensor_acc'
+    rospy.wait_for_service(srv_name)
+    try:
+        srv_fun = rospy.ServiceProxy(srv_name, robotiq_ft_sensor.srv.sensor_accessor)
+        resp1 = srv_fun(robotiq_ft_sensor.srv.sensor_accessorRequest.COMMAND_SET_ZERO, '')
+        return resp1.success
+    except rospy.ServiceException as e:
+        print("Service call failed: %s"%e)
