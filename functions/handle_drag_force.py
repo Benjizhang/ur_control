@@ -7,7 +7,8 @@ def smooth_fd_kf(fd_read_ls):
     z = fd_read_ls
     Q = 1e-5   # process variance (state func)
     R = 0.1**2 # estimate of measurement variance (measure func)
-
+    # R = 0.1**1
+    
     ## assign memory 
     xhat=numpy.zeros(sz)      # x 滤波估计值  
     P=numpy.zeros(sz)         # 滤波估计协方差矩阵  
