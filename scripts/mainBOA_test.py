@@ -211,54 +211,91 @@ def posterior(bo, X):
     return mu, np.sqrt(sigma2), ac
 
 ### plot_2d
-def plot_2d(bo, name=None):
+def plot_2d(bo, XY, f_max, name=None):
     mu, s, ut = posterior(bo, XY)
     fig, ax = plt.subplots(2, 2, figsize=(14, 10))
-    gridsize=150
+    gridsize=88
 
-    # fig.suptitle('Bayesian Optimization in Action', fontdict={'size':30})
+    plt.ion()
 
     # GP regression output
     ax[0][0].set_title('Gausian Process Predicted Mean', fontdict={'size':15})
-    im00 = ax[0][0].hexbin(x, y, C=mu, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=zmin, vmax=zmax)
-    ax[0][0].axis([x.min(), x.max(), y.min(), y.max()])
-    ax[0][0].plot(bo._space.params[:, 0], bo._space.params[:, 1], 'D', markersize=4, color='k', label='Observations')
+    im00 = ax[0][0].hexbin(y, x, C=mu, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=0, vmax=f_max)
+    # ax[0][0].axis([x.min(), x.max(), y.min(), y.max()])
+    # ax[0][0].plot(bo._space.params[:, 0], bo._space.params[:, 1], 'D', markersize=4, color='k', label='Observations')
     # ax[0][0].plot(xbd,ybd,'k-', lw=2, color='k')
-
+    ax[0][0].axis([y.min(), y.max(), x.min(), x.max()])
+    ax[0][0].plot(bo._space.params[:, 1], bo._space.params[:, 0], 'D', markersize=4, color='k', label='Observations')
+    ## convert x,y label
+    ax[0][0].set_ylim(ax[0][0].get_ylim()[::-1]) 
+    ax[0][0].xaxis.tick_top()
+    ax[0][0].yaxis.tick_left()    
+    ax[0][0].set_xlabel('y')    
+    ax[0][0].xaxis.set_label_position('top')
+    ax[0][0].set_ylabel("x")
 
     ax[0][1].set_title('Target Function', fontdict={'size':15})
-    im10 = ax[0][1].hexbin(x, y, C=z, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=zmin, vmax=zmax)
-    ax[0][1].axis([x.min(), x.max(), y.min(), y.max()])
-    ax[0][1].plot(bo._space.params[:, 0], bo._space.params[:, 1], 'D', markersize=4, color='k')
+    im10 = ax[0][1].hexbin(y, x, C=z, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=0, vmax=f_max)
+    # ax[0][1].axis([x.min(), x.max(), y.min(), y.max()])
+    # ax[0][1].plot(bo._space.params[:, 0], bo._space.params[:, 1], 'D', markersize=4, color='k')
     # ax[0][1].plot(xbd,ybd,'k-', lw=2, color='k')
+    ax[0][1].axis([y.min(), y.max(), x.min(), x.max()])
+    ax[0][1].plot(bo._space.params[:, 1], bo._space.params[:, 0], 'D', markersize=4, color='k')
+    ## convert x,y label
+    ax[0][1].set_ylim(ax[0][1].get_ylim()[::-1]) 
+    ax[0][1].xaxis.tick_top()
+    ax[0][1].yaxis.tick_left()    
+    ax[0][1].set_xlabel('y')    
+    ax[0][1].xaxis.set_label_position('top')
+    ax[0][1].set_ylabel("x")
 
 
     ax[1][0].set_title('Gausian Process Variance', fontdict={'size':15})
-    im01 = ax[1][0].hexbin(x, y, C=s, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=0, vmax=1)
-    ax[1][0].axis([x.min(), x.max(), y.min(), y.max()])
+    # im01 = ax[1][0].hexbin(x, y, C=s, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=0, vmax=1)
+    # ax[1][0].axis([x.min(), x.max(), y.min(), y.max()])
+    im01 = ax[1][0].hexbin(y, x, C=s, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=0, vmax=1)
+    ax[1][0].axis([y.min(), y.max(), x.min(), x.max()])
+    ## convert x,y label
+    ax[1][0].set_ylim(ax[1][0].get_ylim()[::-1]) 
+    ax[1][0].xaxis.tick_top()
+    ax[1][0].yaxis.tick_left()    
+    ax[1][0].set_xlabel('y')    
+    ax[1][0].xaxis.set_label_position('top')
+    ax[1][0].set_ylabel("x")
 
     ax[1][1].set_title('Acquisition Function', fontdict={'size':15})
-    im11 = ax[1][1].hexbin(x, y, C=ut, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=0, vmax=8)
+    # im11 = ax[1][1].hexbin(x, y, C=ut, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=0, vmax=8)
+    im11 = ax[1][1].hexbin(y, x, C=ut, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=0, vmax=8)
+
     print(ut)
-    maxVal_x = np.where(ut.reshape((300, 300)) == ut.max())[0]
-    maxVal_y = np.where(ut.reshape((300, 300)) == ut.max())[1]
-    print(np.where(ut.reshape((300, 300)) == ut.max()))
+    maxVal_x = np.where(ut.reshape((125, 175)) == ut.max())[0]
+    maxVal_y = np.where(ut.reshape((125, 175)) == ut.max())[1]
+    print(np.where(ut.reshape((125, 175)) == ut.max()))
     print(maxVal_x)
     print(maxVal_y)
 
-    ax[1][1].plot([np.where(ut.reshape((300, 300)) == ut.max())[1]/50.,
-                   np.where(ut.reshape((300, 300)) == ut.max())[1]/50.],
-                  [0, 6],
+    ax[1][1].plot([np.where(ut.reshape((125, 175)) == ut.max())[1]*0.35/175.,
+                   np.where(ut.reshape((125, 175)) == ut.max())[1]*0.35/175.],
+                  [0, 0.25],
                   '-', lw=2, color='k')
     # plt.show()
 
-    ax[1][1].plot([0, 6],
-                  [np.where(ut.reshape((300, 300)) == ut.max())[0]/50.,
-                   np.where(ut.reshape((300, 300)) == ut.max())[0]/50.],
+    ax[1][1].plot([0, 0.35],
+                  [np.where(ut.reshape((125, 175)) == ut.max())[0]*0.25/125.,
+                   np.where(ut.reshape((125, 175)) == ut.max())[0]*0.25/125.],                  
                   '-', lw=2, color='k')
     # plt.show()
+    
+    ax[1][1].axis([y.min(), y.max(), x.min(), x.max()])
+    ## convert x,y label
+    ax[1][1].set_ylim(ax[1][1].get_ylim()[::-1]) 
+    ax[1][1].xaxis.tick_top()
+    ax[1][1].yaxis.tick_left()    
+    ax[1][1].set_xlabel('y')    
+    ax[1][1].xaxis.set_label_position('top')
+    ax[1][1].set_ylabel("x")
 
-    ax[1][1].axis([x.min(), x.max(), y.min(), y.max()])
+    
 
     for im, axis in zip([im00, im10, im01, im11], ax.flatten()):
         cb = fig.colorbar(im, ax=axis)
@@ -272,7 +309,7 @@ def plot_2d(bo, name=None):
 
     # Save or show figure?
     # fig.savefig('./figures/fourLine/'+'boa_eg_' + name + '.png')
-    plt.show()
+    # plt.show()
     plt.close(fig)
 
 ### target
@@ -417,9 +454,9 @@ def plotInitSandBox(x,y,z):
     axis.xaxis.tick_top()
     axis.yaxis.tick_left()    
     axis.set_xlabel('y')    
-    axis.xaxis.set_label_position('top')   
-    # plt.xlabel("y")
-    plt.ylabel("x")
+    axis.xaxis.set_label_position('top')
+    # plt.ylabel("x")
+    axis.set_ylabel('x')
 
     cb = fig.colorbar(im, )
     cb.set_label('Value')
@@ -496,7 +533,7 @@ if __name__ == '__main__':
     PENE_DEPTH = -0.03 #(default: -0.03) # <<<<<<
     depthz = initPtz + PENE_DEPTH
     # SAFE FORCE
-    SAFE_FORCE = 5.0  #(default: 15)  <<<<<<
+    SAFE_FORCE = 15.0  #(default: 15)  <<<<<<
     flargeFlag = 0
     # folder name
     fd_name = '20220624D5L30/data/' # <<<<<<
@@ -508,14 +545,14 @@ if __name__ == '__main__':
 
     listener = listener()
 
-    # BOA init.
+    ## BOA init.
     bo = BayesianOptimization(f=None, pbounds={'x': (0, xp), 'y': (0, yp)},
                         verbose=2,
                         random_state=1)
     plt.ioff()
-    util = UtilityFunction(kind="ei", 
+    util = UtilityFunction(kind="ucb", 
                         kappa = 2, 
-                        xi=0.2,
+                        xi=0.8,
                         kappa_decay=1,
                         kappa_decay_delay=0)
     curPt = {'x':0,'y':0}
@@ -527,14 +564,23 @@ if __name__ == '__main__':
     y = Y.ravel()
     XY = np.vstack([x, y]).T
     z = 0*x
-    plotInitSandBox(x,y,z)
+    # plotInitSandBox(x,y,z)
+
+    # lift up
+    waypoints = []
+    wpose = ur_control.group.get_current_pose().pose
+    wpose.position.z = saftz
+    waypoints.append(copy.deepcopy(wpose))
+    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
+    ur_control.group.execute(plan, wait=True)
+    rospy.sleep(1)
 
     # go the initial position
     waypoints = []
     wpose = ur_control.group.get_current_pose().pose
     wpose.position.x = initPtx
     wpose.position.y = initPty
-    wpose.position.z = initPtz    
+    wpose.position.z = saftz    
     quater_init = tfs.quaternion_from_euler(0, np.pi, np.pi/2,'szyz')
     wpose.orientation.x = quater_init[0]
     wpose.orientation.y = quater_init[1]
@@ -547,15 +593,6 @@ if __name__ == '__main__':
                                 0.0)
     ur_control.group.execute(plan, wait=True)
 
-    # lift up
-    waypoints = []
-    wpose = ur_control.group.get_current_pose().pose
-    wpose.position.z = saftz
-    waypoints.append(copy.deepcopy(wpose))
-    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
-    ur_control.group.execute(plan, wait=True)
-    rospy.sleep(1)
-
     # penetration
     waypoints = []
     wpose.position.z = depthz
@@ -563,11 +600,10 @@ if __name__ == '__main__':
     (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
     ur_control.group.execute(plan, wait=True)
     rospy.sleep(2)
-
-    
+    zero_ft_sensor()
 
     ## probe slides in the granular media
-    for k in range(1,11):        
+    for k in range(1,21):
         rospy.loginfo("--------- {}-th slide ---------".format(k))
         ######### cal. goal by BOA #########        
         # BOA provides the relative goal
@@ -592,7 +628,7 @@ if __name__ == '__main__':
 
             # prepare to move along the generated path
             listener.clear_finish_flag()
-            zero_ft_sensor()
+            # zero_ft_sensor()
 
             # probe starts moving to the goal
             ur_control.group.execute(plan, wait=False)
@@ -637,8 +673,8 @@ if __name__ == '__main__':
                         rospy.loginfo('BOA Pos x {:.3f}, y {:.3f}, Force {:.3f} N'.format(relx, rely, f_val))
 
             # probe at the goal
-            plot_2d(bo,"{:03}".format(len(bo._space.params)))
-            rospy.sleep(1)
+            # plot_2d(bo,XY,SAFE_FORCE,"{:03}".format(len(bo._space.params)))
+            # rospy.sleep(1)
         else:
             rospy.loginfo('==== Out of Boundary ==== \n')
             break
