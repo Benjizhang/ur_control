@@ -50,7 +50,8 @@ class SfatyPara:
            cury >= self.YMIN and cury <= self.YMAX and \
            curz >= self.ZMIN and curz <= self.ZMAX:
             return True
-        else: return False
+        else:
+            raise Exception("ERROR: Out of Range")
 
     # check whether in the X-Y limit 
     def checkCoorLimitXY(self,pos):
@@ -59,7 +60,8 @@ class SfatyPara:
         if curx >= self.XMIN and curx <= self.XMAX and \
             cury >= self.YMIN and cury <= self.YMAX:
             return True
-        else: return False
+        else: 
+            raise Exception("ERROR: Out of Range")
 
 # check whether in the limit 
 def checkCoorLimit(pos, lim):
