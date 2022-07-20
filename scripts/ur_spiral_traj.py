@@ -20,19 +20,18 @@ import tf2_ros
 from geometry_msgs.msg import PoseArray, TransformStamped
 from std_msgs.msg import String
 
-import helper
 from tf import transformations as tfs
-from scene_helper import setup_scene
-from ur_move import MoveGroupPythonInteface
+from functions.scene_helper import zero_ft_sensor
+from functions.ur_move import MoveGroupPythonInteface
 from robotiq_ft_sensor.msg import ft_sensor
 from control_msgs.msg import FollowJointTrajectoryActionResult as rlst
 import math
 import moveit_commander
 import sys
 import csv
-from jamming_detector import jamming_detector1 as jd1
-from handle_drag_force import smooth_fd_kf, get_mean
-import robotiq_ft_sensor.srv
+from functions.jamming_detector import jamming_detector1 as jd1
+from functions.handle_drag_force import smooth_fd_kf, get_mean
+# import robotiq_ft_sensor.srv
 from functions.drawTraj import urSpiralTraj,urOtraj,urCent2Circle,urPt2Circle,keepCircle
 from functions.saftyCheck import checkCoorLimit,saftyCheckHard
 
@@ -91,23 +90,11 @@ class listener():
         with self.lock_read:
             return self.force_dir
 
-def zero_ft_sensor():
-    srv_name = '/robotiq_ft_sensor_acc'
-    rospy.wait_for_service(srv_name)
-    try:
-        srv_fun = rospy.ServiceProxy(srv_name, robotiq_ft_sensor.srv.sensor_accessor)
-        resp1 = srv_fun(robotiq_ft_sensor.srv.sensor_accessorRequest.COMMAND_SET_ZERO, '')
-        return resp1.success
-    except rospy.ServiceException as e:
-        print("Service call failed: %s"%e)
-
 
 if __name__ == '__main__':
     rospy.init_node("test_move")
     moveit_commander.roscpp_initialize(sys.argv)
-    # # ur_control.speedl_control([0, -0.1, 0, 0, 0, 0], 0.5, 2)
 
-    ################################################################
     ############# ur control #############
     # ur_control = MoveGroupPythonInteface(sim=True)  #simu
     ur_control = MoveGroupPythonInteface(sim=False)  #real
@@ -120,11 +107,8 @@ if __name__ == '__main__':
     res = ur_control.play_program()
     rospy.loginfo("play_program: {}".format(res))
     rospy.sleep(1)
-    ##obtain the current pose list
-    # rospy.loginfo('current pose[xyzxyzw]: \n{}'.format(ur_control.get_pose_list()))
-    # rospy.loginfo('current joint: \n{}'.format(ur_control.get_joint_pos_list()))
 
-    # # set the initial pos (i.e., origin of task frame)
+    ## set the initial pos (i.e., origin of task frame)
     initPtx = ur_control.group.get_current_pose().pose.position.x
     initPty = ur_control.group.get_current_pose().pose.position.y
     initPtz = ur_control.group.get_current_pose().pose.position.z # surface plane
@@ -205,6 +189,7 @@ if __name__ == '__main__':
     ur_control.group.execute(plan, wait=True)
     print('***** Exp Initialized Successfully *****')
     rospy.sleep(0.5)
+
     
     ## start the loop
     for j in range(1,21): # <<<<<<
@@ -264,12 +249,12 @@ if __name__ == '__main__':
                 ## expand/shrink to the given cirlce by spiral traj.
                 radius = 0.04 # 3cm
                 numLoop2circle = 2
-                x,y,Ocent = urCent2Circle(ur_control,radius,3)
+                x,y,Ocent,waypts = urCent2Circle(ur_control,radius,3,True)
 
                 radius2 = 0.0
-                x2,y2 = urPt2Circle(ur_control,Ocent,radius2,3)
+                x2,y2,waypts = urPt2Circle(ur_control,Ocent,radius2,3,True)
 
-                x3,y3 = keepCircle(ur_control,Ocent,3)
+                x3,y3,waypts = keepCircle(ur_control,Ocent,3,True)
 
                 # go to the goal
                 ur_control.set_speed_slider(normalVelScale)
