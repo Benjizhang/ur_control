@@ -22,7 +22,7 @@ from std_msgs.msg import String
 
 from tf import transformations as tfs
 from functions.scene_helper import zero_ft_sensor
-from functions.ur_move import MoveGroupPythonInteface,go2initPose
+from functions.ur_move import MoveGroupPythonInteface,go2Origin,go2GivenPose
 from robotiq_ft_sensor.msg import ft_sensor
 from control_msgs.msg import FollowJointTrajectoryActionResult as rlst
 import math
@@ -33,7 +33,8 @@ from functions.jamming_detector import jamming_detector1 as jd1
 from functions.handle_drag_force import smooth_fd_kf, get_mean
 # import robotiq_ft_sensor.srv
 from functions.drawTraj import urSpiralTraj,urOtraj,urCent2Circle,urPt2Circle,keepCircle
-from functions.saftyCheck import checkCoorLimit,saftyCheckHard
+from functions.saftyCheck import saftyCheckHard
+from functions.saftyCheck import SfatyPara
 
 class listener():
     def __init__(self):
@@ -109,30 +110,18 @@ if __name__ == '__main__':
     rospy.sleep(1)
 
     ## set the initial pos (i.e., origin of task frame)
-    initPtx = ur_control.group.get_current_pose().pose.position.x
-    initPty = ur_control.group.get_current_pose().pose.position.y
-    initPtz = ur_control.group.get_current_pose().pose.position.z # surface plane
-    initPtx = -0.5931848696000094
-    initPty = -0.28895797651231064
-    initPtz = 0.07731254732208744
+    # initPtx = ur_control.group.get_current_pose().pose.position.x
+    # initPty = ur_control.group.get_current_pose().pose.position.y
+    # initPtz = ur_control.group.get_current_pose().pose.position.z # surface plane
+    # initPtx = -0.5931848696000094
+    # initPty = -0.28895797651231064
+    # initPtz = 0.07731254732208744
     # [one option] 
-    # initPtx = 
-    # initPty = 
-    # initPtz =
+    sp = SfatyPara()
+    initPtx = sp.originX
+    initPty = sp.originY
+    initPtz = sp.originZ
 
-    # x positive/ x negative/ y positive/ y negative
-    xp = 0.25
-    xn = 0.0
-    yp = 0.35
-    yn = 0.0
-    
-    # limit of x,y (in world frame)
-    xmax = initPtx + xp
-    xmin = initPtx - xn
-    ymax = initPty + yp
-    ymin = initPty - yn
-
-    lim = [xmin, xmax, ymin, ymax]
     ## set zero to the ft 300
     zero_ft_sensor()
     
@@ -170,8 +159,14 @@ if __name__ == '__main__':
         print('!!!!! Safety Check Failed !!!!!')
         sys.exit(1)
     
-    ## go the (default) initial position
-    go2initPose(ur_control,saftz)
+    ## go the origin
+    go2Origin(ur_control)
+
+    pose = [0 for x in range(0,3)]
+    pose[0] = initPtx + 0.1
+    pose[1] = initPty
+    pose[2] = initPtz
+    go2GivenPose(ur_control,pose)
     
     ## start the loop
     for j in range(1,21): # <<<<<<
@@ -210,7 +205,7 @@ if __name__ == '__main__':
             ur_control.group.execute(plan, wait=True)
             
             ## check the coorrdinate limit
-            if checkCoorLimit([x_e_wldf, y_e_wldf], lim):
+            if sp.checkCoorLimitXY([x_e_wldf, y_e_wldf]):
                 ## penetration
                 waypoints = []
                 wpose.position.z = depthz

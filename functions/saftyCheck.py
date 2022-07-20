@@ -21,9 +21,9 @@ class SfatyPara:
         self.PENE_Z_MAX = -0.06 # -6 cm
 
         # origin coordinates in the UR base frame
-        self.origin.X = -0.5931848696000094
-        self.origin.Y = -0.28895797651231064
-        self.origin.Z = 0.07731254732208744
+        self.originX = -0.5931848696000094
+        self.originY = -0.28895797651231064
+        self.originZ = 0.07731254732208744
         # safe box (relative frame)        
         self.xmin = 0.   # 0 cm
         self.xmax = 0.25 # +25 cm
@@ -32,13 +32,14 @@ class SfatyPara:
         self.zmin = self.PENE_Z_MAX # -6 cm
         self.zmax = self.LIFT_Z_MAX # +20cm
         # safe box (UR base frame)        
-        self.XMIN = self.origin.X + self.xmin
-        self.XMAX = self.origin.X + self.xmax
-        self.YMIN = self.origin.Y + self.ymin
-        self.YMAX = self.origin.Y + self.ymax
-        self.ZMIN = self.origin.Z + self.zmin
-        self.ZMAX = self.origin.Z + self.zmax
-
+        self.XMIN = self.originX + self.xmin
+        self.XMAX = self.originX + self.xmax
+        self.YMIN = self.originY + self.ymin
+        self.YMAX = self.originY + self.ymax
+        self.ZMIN = self.originZ + self.zmin
+        self.ZMAX = self.originZ + self.zmax
+        # safety height to translation
+        self.SAFEZ = self.originZ + 0.10 # +10cm
     
     # check a 3d position is in the limit or not
     def checkCoorLimit3d(self,pos):
@@ -48,6 +49,15 @@ class SfatyPara:
         if curx >= self.XMIN and curx <= self.XMAX and \
            cury >= self.YMIN and cury <= self.YMAX and \
            curz >= self.ZMIN and curz <= self.ZMAX:
+            return True
+        else: return False
+
+    # check whether in the X-Y limit 
+    def checkCoorLimitXY(self,pos):
+        curx = pos[0]
+        cury = pos[1]
+        if curx >= self.XMIN and curx <= self.XMAX and \
+            cury >= self.YMIN and cury <= self.YMAX:
             return True
         else: return False
 
@@ -104,7 +114,7 @@ def emergency_stop2(ur_control,stop_pos, saftz):
 # check some important given parameters (v.s. hard constraints)
 def saftyCheckHard(lift_z,pene_z,safe_fd):
     checkLs = []
-    sp = SfatyPara
+    sp = SfatyPara()
     LIFT_Z_MIN = abs(sp.LIFT_Z_MIN) # 8 cm
     LIFT_Z_MAX = abs(sp.LIFT_Z_MAX) # 20 cm
     PENE_Z_MIN = abs(sp.PENE_Z_MIN) # 0 cm

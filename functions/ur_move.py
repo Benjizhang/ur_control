@@ -22,6 +22,7 @@ import ur_msgs.msg
 import ur_msgs.srv
 
 from functions import helper
+from functions.saftyCheck import SfatyPara
 
 DEF_TOPIC_HW = 'ur_hardware_interface'
 dashboard_srv_prefix = DEF_TOPIC_HW + '/dashboard/'
@@ -619,16 +620,17 @@ class MoveGroupPythonInteface(object):
     # End UR APIs -------------------------------------------------------------
     # -------------------------------------------------------------------------
 
-## go to the (default) initial pose (pos+ori)
-def go2initPose(ur_control,saftz):
-    initPtx = -0.5931848696000094
-    initPty = -0.28895797651231064
-    initPtz = 0.07731254732208744
+## go to the origin (pos+ori)
+def go2Origin(ur_control):
+    sp = SfatyPara()
+    initPtx = sp.originX
+    initPty = sp.originY
+    initPtz = sp.originZ
 
     ## lift up to the safe height
     waypoints = []
     wpose = ur_control.group.get_current_pose().pose
-    wpose.position.z = saftz
+    wpose.position.z = sp.SAFEZ
     waypoints.append(copy.deepcopy(wpose))
 
     ## go the initial position    
@@ -647,6 +649,33 @@ def go2initPose(ur_control,saftz):
     rospy.sleep(0.5)
 
     print('***** Exp Initialized Successfully *****')    
+
+def go2GivenPose(ur_control,pose):
+    sp = SfatyPara()
+    ## lift up to the safe height
+    waypoints = []
+    wpose = ur_control.group.get_current_pose().pose
+    wpose.position.z = sp.SAFEZ
+    waypoints.append(copy.deepcopy(wpose))
+
+    ## safety check
+    if sp.checkCoorLimit3d(pose):
+        ## go the given position    
+        wpose.position.x = pose[0]
+        wpose.position.y = pose[1]
+        waypoints.append(copy.deepcopy(wpose))
+        wpose.position.z = pose[2]    
+        quater_init = tfs.quaternion_from_euler(0, np.pi, np.pi/2,'szyz')
+        wpose.orientation.x = quater_init[0]
+        wpose.orientation.y = quater_init[1]
+        wpose.orientation.z = quater_init[2]
+        wpose.orientation.w = quater_init[3]
+        waypoints.append(copy.deepcopy(wpose))
+        (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+        ur_control.group.execute(plan, wait=True)
+        rospy.sleep(0.5)
+        return True
+    else: return False
 
 if __name__ == '__main__':
     rospy.init_node("test_move")
