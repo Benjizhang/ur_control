@@ -67,7 +67,7 @@ def urOtraj(ur_control):
     return True
 
 ## from current pos (circle center) to the given circle by the spiral trajectory
-def urCent2Circle(ur_control,radius,numLoop2circle):    
+def urCent2Circle(ur_control,radius,numLoop2circle,execute):    
     # coordinates
     x = []
     y = []
@@ -97,15 +97,16 @@ def urCent2Circle(ur_control,radius,numLoop2circle):
         x.append(wpose.position.x)
         y.append(wpose.position.y)
     
-    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
-    ur_control.group.execute(plan, wait=True)
-    time.sleep(0.5)
+    if execute == True:
+        (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+        ur_control.group.execute(plan, wait=True)
+        time.sleep(0.5)        
     
-    return x,y,cent
+    return x,y,cent,waypoints
 
 ## from current pos (NOT the circle center) to the next circle with the given center
 ## by spiral trajectory
-def urPt2Circle(ur_control,Ocent,radius,numLoop2circle):
+def urPt2Circle(ur_control,Ocent,radius,numLoop2circle,execute):
     # coordinates
     x = []
     y = []
@@ -137,14 +138,15 @@ def urPt2Circle(ur_control,Ocent,radius,numLoop2circle):
         x.append(wpose.position.x)
         y.append(wpose.position.y)
     
-    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
-    ur_control.group.execute(plan, wait=True)
-    time.sleep(0.5)
+    if execute == True:
+        (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+        ur_control.group.execute(plan, wait=True)
+        time.sleep(0.5)
 
-    return x,y
+    return x,y,waypoints
 
 ## keep in given circle
-def keepCircle(ur_control,Ocent,numLoop):
+def keepCircle(ur_control,Ocent,numLoop,execute):
     # coordinates
     x = []
     y = []
@@ -171,14 +173,15 @@ def keepCircle(ur_control,Ocent,numLoop):
             x.append(wpose.position.x)
             y.append(wpose.position.y)
         
-        (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
-        ur_control.group.execute(plan, wait=True)
-        time.sleep(0.5)
+        if execute == True:
+            (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+            ur_control.group.execute(plan, wait=True)
+            time.sleep(0.5)
 
-        return x,y
+        return x,y,waypoints
     else:
         # do nothing
-        return curx,cury
+        return curx,cury,waypoints
 
 
 
