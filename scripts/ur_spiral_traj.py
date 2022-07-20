@@ -131,12 +131,12 @@ if __name__ == '__main__':
     ds_obj = 0.27
     
     LIFT_HEIGHT = +0.10 #(default: +0.10) # <<<<<<
-    saftz = initPtz + LIFT_HEIGHT
+    # saftz = initPtz + LIFT_HEIGHT
     # PENETRATION DEPTH
     PENE_DEPTH = +0.10  #(default: -0.03) # <<<<<<
     depthz = initPtz + PENE_DEPTH
-    # SAFE FORCE
-    SAFE_FORCE = 10.0  #(default: 15N) # <<<<<<
+    # Cur SAFE FORCE
+    CUR_SAFE_FORCE = 10.0  #(default: 15N) # <<<<<<
     flargeFlag = 0
     # folder name
     fd_name = 'ur_spiral_traj/data/' # <<<<<<
@@ -153,19 +153,19 @@ if __name__ == '__main__':
     ur_control.set_speed_slider(maxVelScale)
 
     ## check exp safety setting at the beginning
-    if saftyCheckHard(LIFT_HEIGHT,PENE_DEPTH,SAFE_FORCE):
+    if saftyCheckHard(LIFT_HEIGHT,PENE_DEPTH,CUR_SAFE_FORCE):
         print('***** Safety Check Successfully *****')
     else:
         print('!!!!! Safety Check Failed !!!!!')
         sys.exit(1)
     
     ## go the origin
-    go2Origin(ur_control)
+    # go2Origin(ur_control)
 
     pose = [0 for x in range(0,3)]
     pose[0] = initPtx + 0.1
-    pose[1] = initPty
-    pose[2] = initPtz
+    pose[1] = initPty 
+    pose[2] = initPtz 
     go2GivenPose(ur_control,pose)
     
     ## start the loop
@@ -192,7 +192,7 @@ if __name__ == '__main__':
             ur_control.set_speed_slider(maxVelScale)
             waypoints = []
             wpose = ur_control.group.get_current_pose().pose
-            wpose.position.z = saftz
+            wpose.position.z = sp.SAFEZ
             waypoints.append(copy.deepcopy(wpose))
             (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
             ur_control.group.execute(plan, wait=True)
@@ -262,7 +262,7 @@ if __name__ == '__main__':
                         # rospy.loginfo('Distance (m): {}'.format(dist))
 
                         ## most conservative way (most safe)
-                        if np.round(f_val,6) > SAFE_FORCE:
+                        if np.round(f_val,6) > CUR_SAFE_FORCE:
                             rospy.loginfo('==== Large Force Warning ==== \n')
                             ur_control.group.stop()
                             flargeFlag = True
@@ -289,7 +289,7 @@ if __name__ == '__main__':
     # lift up
     waypoints = []
     wpose = ur_control.group.get_current_pose().pose
-    wpose.position.z = saftz
+    wpose.position.z = sp.SAFEZ
     waypoints.append(copy.deepcopy(wpose))
     (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
     ur_control.group.execute(plan, wait=True)    
