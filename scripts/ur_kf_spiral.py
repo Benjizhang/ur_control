@@ -1,4 +1,4 @@
-# exp: ur5 + Kalman Filter + spiral traj.
+# exp: ur5 + Kalman Filter + JD + spiral traj.
 #
 # Penetration Depth: D5cm # <<<<<<
 # speed/velocity: 0.1 （slow motion）
@@ -29,7 +29,9 @@ import math
 import moveit_commander
 import sys
 import csv
-from functions.jamming_detector import jamming_detector1 as jd1
+from functions.jamming_detector import JDLib
+# from functions.jamming_detector import jamming_detector1 as jd1
+# from functions.jamming_detector import plotJDRes
 from functions.handle_drag_force import smooth_fd_kf, get_mean
 # import robotiq_ft_sensor.srv
 from functions.drawTraj import urSpiralTraj,urOtraj,urCent2Circle,urPt2Circle,keepCircle
@@ -95,7 +97,7 @@ class listener():
 if __name__ == '__main__':
     rospy.init_node("test_move")
     moveit_commander.roscpp_initialize(sys.argv)
-
+    
     ############# ur control #############
     # ur_control = MoveGroupPythonInteface(sim=True)  #simu
     ur_control = MoveGroupPythonInteface(sim=False)  #real
@@ -133,21 +135,24 @@ if __name__ == '__main__':
     LIFT_HEIGHT = +0.10 #(default: +0.10) # <<<<<<
     # saftz = initPtz + LIFT_HEIGHT
     # PENETRATION DEPTH
-    PENE_DEPTH = +0.10  #(default: -0.03) # <<<<<<
+    PENE_DEPTH = -0.05  #(default: -0.03) # <<<<<<
     depthz = initPtz + PENE_DEPTH
     # Cur SAFE FORCE
     CUR_SAFE_FORCE = 10.0  #(default: 15N) # <<<<<<
     flargeFlag = 0
     # folder name
-    fd_name = 'ur_spiral_traj/data/' # <<<<<<
-    #fig_dir = '/home/zhangzeqing/Nutstore Files/Nutstore/ur_spiral_traj/fig'
+    fd_name = '20220720spiralTraj/data/' # <<<<<<
+    fig_path = '/home/zhangzeqing/Nutstore Files/Nutstore/20220720spiralTraj/fig'
     isSaveForce = 0           # <<<<<<
+    isPlotJD = 1
     # velocity limits setting
     maxVelScale    = 0.3 # <<<<<<
     normalVelScale = 0.1 # <<<<<<
     ite_bar = 30
     delta_ite = 10
     ds_min = 0.005
+    JDid = 1
+    diff_bar = 2 # N
 
     listener = listener()
     ur_control.set_speed_slider(maxVelScale)
@@ -156,8 +161,7 @@ if __name__ == '__main__':
     if saftyCheckHard(LIFT_HEIGHT,PENE_DEPTH,CUR_SAFE_FORCE):
         print('***** Safety Check Successfully *****')
     else:
-        print('!!!!! Safety Check Failed !!!!!')
-        sys.exit(1)
+        raise Exception('Error: Safety Check Failed')
     
     ## go the origin
     # go2Origin(ur_control)
@@ -165,9 +169,9 @@ if __name__ == '__main__':
     pose = [0 for x in range(0,3)]
     pose[0] = initPtx + 0.1
     pose[1] = initPty 
-    pose[2] = initPtz 
+    pose[2] = sp.SAFEZ 
     go2GivenPose(ur_control,pose)
-    
+    rospy.sleep(2)
     ## start the loop
     for j in range(1,21): # <<<<<<
         #region： #experiment of 1 strokes    
@@ -249,24 +253,54 @@ if __name__ == '__main__':
                     f_val = listener.get_force_val()
                     f_dir = listener.get_force_dir()
                     if f_val is not None:
-                        ## path distance
-                        cur_pos = ur_control.group.get_current_pose().pose
-                        curx = cur_pos.position.x
-                        cury = cur_pos.position.y
-                        dist = round(np.abs(cury - y_s_wldf),6)
-                        
-                        df_ls.append(round(f_val,6))
-                        dr_ls.append(round(f_dir,6))
-                        ds_ls.append(dist)
-                        # rospy.loginfo('ForceVal (N): {}'.format(f_val))
-                        # rospy.loginfo('Distance (m): {}'.format(dist))
-
                         ## most conservative way (most safe)
                         if np.round(f_val,6) > CUR_SAFE_FORCE:
                             rospy.loginfo('==== Large Force Warning ==== \n')
                             ur_control.group.stop()
                             flargeFlag = True
                             break
+
+                        ## path distance
+                        cur_pos = ur_control.group.get_current_pose().pose
+                        curx = cur_pos.position.x
+                        cury = cur_pos.position.y
+                        dist = round(np.abs(cury - y_s_wldf),6)
+                        
+                        # df_ls.append(round(f_val,6))
+                        # dr_ls.append(round(f_dir,6))
+                        # ds_ls.append(dist)
+                        # rospy.loginfo('ForceVal (N): {}'.format(f_val))
+                        # rospy.loginfo('Distance (m): {}'.format(dist))
+                        
+                        ### only record the stable duration
+                        if round(dist - ds_min, 6) >= 0:
+                            df_ls.append(round(f_val,6))
+                            dr_ls.append(round(f_dir,6))
+                            ds_ls.append(dist)
+                        
+                        ## using jamming detector 1
+                        if len(df_ls) >= ite_bar and len(df_ls)%delta_ite==0:
+                            ## Kalman Filter
+                            fdhat, Pminus = smooth_fd_kf(df_ls)
+                            ## Mean
+                            fdmean = get_mean(df_ls)
+                            ## absolute difference (N)
+                            cur_abs_diff = round(abs(fdhat[-1] - fdmean[-1]),3)
+                            ## detect jamming
+                            # Mx, isJamming = jd1(fdhat, fdmean, 0.5, delta_ite) 
+                            JDlib = JDLib(df_ls,ds_ls,fdhat,fdmean,diff_bar)
+                            isJamming = JDlib.JD(JDid)
+                            if isJamming:
+                                rospy.loginfo('**== Jamming Detected ==** \n')
+                                ur_control.group.stop()
+                                flargeFlag = True
+                                ## plot jamming result
+                                if isPlotJD:
+                                    ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
+                                    title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}, Adv {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff,ds_adv)
+                                    JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
+                                break
+                
                 ## log (external)
                 if isSaveForce ==  1:
                     allData = zip(df_ls,dr_ls,ds_ls)
@@ -278,10 +312,17 @@ if __name__ == '__main__':
                     f.close()              
                 # rospy.loginfo('Ref Dir(deg): {}'.format(theta_cur))
                 # rospy.loginfo('{}-th loop finished'.format(i))
+
+                ## if no jamming, plot it
+                if isPlotJD and not flargeFlag:
+                    ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
+                    title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}, Adv {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff,ds_adv)
+                    JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
+
             else:
                 rospy.loginfo('Out of the Worksapce:\n x {}, y {}'.format(round(x_e_wldf,3),round(y_e_wldf,3)))
                 ur_control.group.stop()
-                sys.exit(1)
+                raise Exception('Out of the Worksapce:\n x {}, y {}'.format(round(x_e_wldf,3),round(y_e_wldf,3)))
             if flargeFlag == 1:
                 break
         rospy.loginfo('Exp {} finished'.format(j))
