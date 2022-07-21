@@ -271,18 +271,19 @@ def urCentOLine(ur_control,radius,forward_len,goal):
         x.append(wpose.position.x)
         y.append(wpose.position.y)
     
+    x,y,waypoints4 = keepCircle2(ur_control,[curOcent_x,curOcent_y],2,False,waypoints3[-1])
     ## execute traj. together
-    waypoints = waypoints1+waypoints2+waypoints3
-    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
-    ur_control.group.execute(plan, wait=True)
-    ## TODO: add force monitor
-    time.sleep(0.5)
+    waypoints = waypoints1+waypoints2+waypoints3+waypoints4
+    # (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+    # ur_control.group.execute(plan, wait=True)
+    # ## TODO: add force monitor
+    # time.sleep(0.5)
 
     return x,y,waypoints
 
 def getGoal(curPos,goal):
     dist = np.sqrt((curPos[0]-goal[0])**2+(curPos[1]-goal[1])**2)
-    if round(dist,3) <= 0.002: # 2mm 
+    if round(dist,4) < 0.001: # 2mm 
         return True # achieve the goal
     else: return False
 
