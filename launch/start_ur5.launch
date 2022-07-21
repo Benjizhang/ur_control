@@ -31,6 +31,7 @@ PC ip:          192.168.1.11
     </include>
 
     <node name = "robotiq_ft" pkg = "robotiq_ft_sensor" type = "rq_sensor"/>
-    <node name = "force_plot"  pkg = "rqt_plot" type = "rqt_plot" args = "/robotiq_ft_force2d/val"/>
+    <node name = "forceVal_plot"  pkg = "rqt_plot" type = "rqt_plot" args = "/robotiq_ft_force2d/val"/>
+    <node name = "forceDir_plot"  pkg = "rqt_plot" type = "rqt_plot" args = "/robotiq_ft_force2d/dir"/>
 
 </launch>
