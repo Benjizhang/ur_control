@@ -8,6 +8,7 @@
 
 import numpy as np
 import pylab
+import time
 
 class JDLib():
     def __init__(self,df_ls,ds_ls,fdhat,fdmean,diff_bar):
@@ -58,7 +59,8 @@ class JDLib():
         pylab.setp(pylab.gca(),'xlim',[0,.3])
         pylab.grid()
         # pylab.show()
-        pylab.savefig('{}/exp{}_ite{}_JD{}.png'.format(fig_path,expid,len(self.df_ls),self.JDid))
+        now_date = time.strftime("%m%d%H%M%S", time.localtime())
+        pylab.savefig('{}/{}_Exp{}Ite{}JD{}.png'.format(fig_path,now_date,expid,len(self.df_ls),self.JDid))
 
 #region
 # def JD1(self,kf_ls, mean_ls, diff_bar, delta_ite):
