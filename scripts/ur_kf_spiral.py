@@ -34,7 +34,7 @@ from functions.jamming_detector import JDLib
 # from functions.jamming_detector import plotJDRes
 from functions.handle_drag_force import smooth_fd_kf, get_mean
 # import robotiq_ft_sensor.srv
-from functions.drawTraj import urSpiralTraj,urOtraj,urCent2Circle,urPt2Circle,keepCircle
+from functions.drawTraj import urSpiralTraj,urOtraj,urCent2Circle,urPt2Circle,keepCircle,urCentOLine
 from functions.saftyCheck import saftyCheckHard
 from functions.saftyCheck import SfatyPara
 
@@ -198,7 +198,7 @@ if __name__ == '__main__':
             wpose = ur_control.group.get_current_pose().pose
             wpose.position.z = sp.SAFEZ
             waypoints.append(copy.deepcopy(wpose))
-            (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
+            (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
             ur_control.group.execute(plan, wait=True)
             
             ## move to the start point (speed up)         
@@ -214,7 +214,7 @@ if __name__ == '__main__':
                 waypoints = []
                 wpose.position.z = depthz
                 waypoints.append(copy.deepcopy(wpose))
-                (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
+                (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
                 ur_control.group.execute(plan, wait=True)
                 ur_control.group.stop()
                 rospy.sleep(2)                          
@@ -236,6 +236,8 @@ if __name__ == '__main__':
                 # x2,y2,waypts = urPt2Circle(ur_control,Ocent,radius2,3,True)
 
                 # x3,y3,waypts = keepCircle(ur_control,Ocent,3,True)
+
+                urCentOLine(ur_control,0.01,0.01,[x_e_wldf,y_e_wldf])
 
                 # go to the goal
                 ur_control.set_speed_slider(normalVelScale)
@@ -292,14 +294,20 @@ if __name__ == '__main__':
                             isJamming = JDlib.JD(JDid)
                             if isJamming:
                                 rospy.loginfo('**== Jamming Detected ==** \n')
-                                ur_control.group.stop()
-                                flargeFlag = True
-                                ## plot jamming result
-                                if isPlotJD:
-                                    ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
-                                    title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}, Adv {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff,ds_adv)
-                                    JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
-                                break
+                                ## ----- v1.0 -----
+                                # ur_control.group.stop()
+                                # flargeFlag = True
+                                # ## plot jamming result
+                                # if isPlotJD:
+                                #     ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
+                                #     title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}, Adv {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff,ds_adv)
+                                #     JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
+                                # break
+
+                                ## ----- v2.0 -----                                
+                                ### circle + forward slowly
+                                # urCentOLine(ur_control,0.02,0.01,[x_e_wldf,y_e_wldf])
+
                 
                 ## log (external)
                 if isSaveForce ==  1:
@@ -332,7 +340,7 @@ if __name__ == '__main__':
     wpose = ur_control.group.get_current_pose().pose
     wpose.position.z = sp.SAFEZ
     waypoints.append(copy.deepcopy(wpose))
-    (plan, fraction) = ur_control.group.compute_cartesian_path(waypoints,0.01,0.0)
+    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
     ur_control.group.execute(plan, wait=True)    
     # endregion
     
