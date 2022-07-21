@@ -237,76 +237,76 @@ if __name__ == '__main__':
 
                 # x3,y3,waypts = keepCircle(ur_control,Ocent,3,True)
 
-                urCentOLine(ur_control,0.01,0.01,[x_e_wldf,y_e_wldf])
+                urCentOLine(ur_control,0.03,0.01,[x_e_wldf,y_e_wldf])
 
-                # go to the goal
-                ur_control.set_speed_slider(normalVelScale)
-                waypoints = []
-                wpose.position.x = x_e_wldf
-                wpose.position.y = y_e_wldf
-                waypoints.append(copy.deepcopy(wpose))
-                (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
-                listener.clear_finish_flag()
-                zero_ft_sensor()
-                ur_control.group.execute(plan, wait=False)
-                rospy.loginfo('clear_finish_flag')
-                while not listener.read_finish_flag():                    
-                    ## measure the force val/dir
-                    f_val = listener.get_force_val()
-                    f_dir = listener.get_force_dir()
-                    if f_val is not None:
-                        ## most conservative way (most safe)
-                        if np.round(f_val,6) > CUR_SAFE_FORCE:
-                            rospy.loginfo('==== Large Force Warning ==== \n')
-                            ur_control.group.stop()
-                            flargeFlag = True
-                            break
+                # # go to the goal
+                # ur_control.set_speed_slider(normalVelScale)
+                # waypoints = []
+                # wpose.position.x = x_e_wldf
+                # wpose.position.y = y_e_wldf
+                # waypoints.append(copy.deepcopy(wpose))
+                # (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+                # listener.clear_finish_flag()
+                # zero_ft_sensor()
+                # ur_control.group.execute(plan, wait=False)
+                # rospy.loginfo('clear_finish_flag')
+                # while not listener.read_finish_flag():                    
+                #     ## measure the force val/dir
+                #     f_val = listener.get_force_val()
+                #     f_dir = listener.get_force_dir()
+                #     if f_val is not None:
+                #         ## most conservative way (most safe)
+                #         if np.round(f_val,6) > CUR_SAFE_FORCE:
+                #             rospy.loginfo('==== Large Force Warning ==== \n')
+                #             ur_control.group.stop()
+                #             flargeFlag = True
+                #             break
 
-                        ## path distance
-                        cur_pos = ur_control.group.get_current_pose().pose
-                        curx = cur_pos.position.x
-                        cury = cur_pos.position.y
-                        dist = round(np.abs(cury - y_s_wldf),6)
+                #         ## path distance
+                #         cur_pos = ur_control.group.get_current_pose().pose
+                #         curx = cur_pos.position.x
+                #         cury = cur_pos.position.y
+                #         dist = round(np.abs(cury - y_s_wldf),6)
                         
-                        # df_ls.append(round(f_val,6))
-                        # dr_ls.append(round(f_dir,6))
-                        # ds_ls.append(dist)
-                        # rospy.loginfo('ForceVal (N): {}'.format(f_val))
-                        # rospy.loginfo('Distance (m): {}'.format(dist))
+                #         # df_ls.append(round(f_val,6))
+                #         # dr_ls.append(round(f_dir,6))
+                #         # ds_ls.append(dist)
+                #         # rospy.loginfo('ForceVal (N): {}'.format(f_val))
+                #         # rospy.loginfo('Distance (m): {}'.format(dist))
                         
-                        ### only record the stable duration
-                        if round(dist - ds_min, 6) >= 0:
-                            df_ls.append(round(f_val,6))
-                            dr_ls.append(round(f_dir,6))
-                            ds_ls.append(dist)
+                #         ### only record the stable duration
+                #         if round(dist - ds_min, 6) >= 0:
+                #             df_ls.append(round(f_val,6))
+                #             dr_ls.append(round(f_dir,6))
+                #             ds_ls.append(dist)
                         
-                        ## using jamming detector 1
-                        if len(df_ls) >= ite_bar and len(df_ls)%delta_ite==0:
-                            ## Kalman Filter
-                            fdhat, Pminus = smooth_fd_kf(df_ls)
-                            ## Mean
-                            fdmean = get_mean(df_ls)
-                            ## absolute difference (N)
-                            cur_abs_diff = round(abs(fdhat[-1] - fdmean[-1]),3)
-                            ## detect jamming
-                            # Mx, isJamming = jd1(fdhat, fdmean, 0.5, delta_ite) 
-                            JDlib = JDLib(df_ls,ds_ls,fdhat,fdmean,diff_bar)
-                            isJamming = JDlib.JD(JDid)
-                            if isJamming:
-                                rospy.loginfo('**== Jamming Detected ==** \n')
-                                ## ----- v1.0 -----
-                                # ur_control.group.stop()
-                                # flargeFlag = True
-                                # ## plot jamming result
-                                # if isPlotJD:
-                                #     ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
-                                #     title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}, Adv {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff,ds_adv)
-                                #     JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
-                                # break
+                #         ## using jamming detector 1
+                #         if len(df_ls) >= ite_bar and len(df_ls)%delta_ite==0:
+                #             ## Kalman Filter
+                #             fdhat, Pminus = smooth_fd_kf(df_ls)
+                #             ## Mean
+                #             fdmean = get_mean(df_ls)
+                #             ## absolute difference (N)
+                #             cur_abs_diff = round(abs(fdhat[-1] - fdmean[-1]),3)
+                #             ## detect jamming
+                #             # Mx, isJamming = jd1(fdhat, fdmean, 0.5, delta_ite) 
+                #             JDlib = JDLib(df_ls,ds_ls,fdhat,fdmean,diff_bar)
+                #             isJamming = JDlib.JD(JDid)
+                #             if isJamming:
+                #                 rospy.loginfo('**== Jamming Detected ==** \n')
+                #                 ## ----- v1.0 -----
+                #                 # ur_control.group.stop()
+                #                 # flargeFlag = True
+                #                 # ## plot jamming result
+                #                 # if isPlotJD:
+                #                 #     ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
+                #                 #     title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}, Adv {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff,ds_adv)
+                #                 #     JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
+                #                 # break
 
-                                ## ----- v2.0 -----                                
-                                ### circle + forward slowly
-                                # urCentOLine(ur_control,0.02,0.01,[x_e_wldf,y_e_wldf])
+                #                 ## ----- v2.0 -----                                
+                #                 ### circle + forward slowly
+                #                 # urCentOLine(ur_control,0.02,0.01,[x_e_wldf,y_e_wldf])
 
                 
                 ## log (external)
@@ -321,11 +321,11 @@ if __name__ == '__main__':
                 # rospy.loginfo('Ref Dir(deg): {}'.format(theta_cur))
                 # rospy.loginfo('{}-th loop finished'.format(i))
 
-                ## if no jamming, plot it
-                if isPlotJD and not flargeFlag:
-                    ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
-                    title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}, Adv {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff,ds_adv)
-                    JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
+                ## if no jamming, plot it， and ds_ls not empty
+                if isPlotJD and not flargeFlag and ds_ls:
+                        ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
+                        title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, NoJD'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls))
+                        JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
 
             else:
                 rospy.loginfo('Out of the Worksapce:\n x {}, y {}'.format(round(x_e_wldf,3),round(y_e_wldf,3)))
