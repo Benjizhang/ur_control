@@ -104,6 +104,48 @@ def urCent2Circle(ur_control,radius,numLoop2circle,execute):
     
     return x,y,cent,waypoints
 
+## if execute is false, then using given start pose
+def keepCircle2(ur_control,Ocent,numLoop,execute,waypts):
+    # coordinates
+    x = []
+    y = []
+    waypoints = []
+
+    if execute == False:
+        # start pos: given waypoint
+        wpose = waypts
+    else:
+        # start pos: current pos
+        wpose = ur_control.group.get_current_pose().pose
+    startx = wpose.position.x
+    starty = wpose.position.y
+
+
+    radius = np.sqrt((Ocent[0]-startx)**2+(Ocent[1]-starty)**2)
+    if round(radius,3) != 0:
+        init_angle = np.arctan2(starty-Ocent[1],startx-Ocent[0])
+        end_angle = 2*np.pi*numLoop
+        # 36 segments for 180 deg
+        num_anlge = int(36*(end_angle/(np.pi)))
+        # generate circle
+        for theta in np.linspace(0,end_angle,num_anlge):
+            wpose.position.x = Ocent[0]+radius*np.cos(theta+init_angle)
+            wpose.position.y = Ocent[1]+radius*np.sin(theta+init_angle)
+            waypoints.append(copy.deepcopy(wpose))
+
+            x.append(wpose.position.x)
+            y.append(wpose.position.y)
+        
+        if execute == True:
+            (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+            ur_control.group.execute(plan, wait=True)
+            time.sleep(0.1)
+
+        return x,y,waypoints
+    else:
+        # do nothing
+        return startx,starty,waypoints
+
 ## from current pos (NOT the circle center) to the next circle with the given center
 ## by spiral trajectory
 def urPt2Circle(ur_control,Ocent,radius,numLoop2circle,execute):
@@ -186,23 +228,27 @@ def keepCircle(ur_control,Ocent,numLoop,execute):
 ## cirlce (current pos as center) + straight line
 def urCentOLine(ur_control,radius,forward_len,goal):
     ## from current to the circle
-    x,y,Ocent,waypoints = urCent2Circle(ur_control,radius,2,True)
-    x,y,waypoints = keepCircle(ur_control,Ocent,2,True)
-    ## execute + force monitor 
+    x,y,Ocent,waypoints1 = urCent2Circle(ur_control,radius,2,False)
+    # x,y,waypoints2 = keepCircle(ur_control,Ocent,2,False)
+    x,y,waypoints2 = keepCircle2(ur_control,Ocent,2,False,waypoints1[-1])
+    
+    ## circle+line traj.
     x = []
     y = []
 
-    # current pos
-    waypoints = []
-    wpose = ur_control.group.get_current_pose().pose
-    curx = wpose.position.x
-    cury = wpose.position.y
+    waypoints3 = []
+    # start pos: given pos
+    wpose = copy.deepcopy(waypoints2[-1])
+    # start pos: current pos
+    # wpose = ur_control.group.get_current_pose().pose
+    startx = wpose.position.x
+    starty = wpose.position.y
 
     delta_y = goal[1] - Ocent[1]
     delta_x = goal[0] - Ocent[0]
     ang2goal = np.arctan2(delta_y, delta_x)
 
-    init_angle = np.arctan2(cury-Ocent[1],curx-Ocent[0])
+    init_angle = np.arctan2(starty-Ocent[1],startx-Ocent[0])
     end_angle = 2*np.pi
     # 36 segments for 180 deg
     num_ite = 36
@@ -220,11 +266,13 @@ def urCentOLine(ur_control,radius,forward_len,goal):
         curTheta = init_angle + ite*delta_theta
         wpose.position.x = curOcent_x + radius*np.cos(curTheta)
         wpose.position.y = curOcent_y + radius*np.sin(curTheta)
-        waypoints.append(copy.deepcopy(wpose))
+        waypoints3.append(copy.deepcopy(wpose))
 
         x.append(wpose.position.x)
         y.append(wpose.position.y)
     
+    ## execute traj. together
+    waypoints = waypoints1+waypoints2+waypoints3
     (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
     ur_control.group.execute(plan, wait=True)
     ## TODO: add force monitor
