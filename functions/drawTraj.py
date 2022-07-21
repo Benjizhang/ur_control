@@ -100,7 +100,7 @@ def urCent2Circle(ur_control,radius,numLoop2circle,execute):
     if execute == True:
         (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
         ur_control.group.execute(plan, wait=True)
-        time.sleep(0.5)        
+        time.sleep(0.1)        
     
     return x,y,cent,waypoints
 
@@ -145,7 +145,7 @@ def urPt2Circle(ur_control,Ocent,radius,numLoop2circle,execute):
 
     return x,y,waypoints
 
-## keep in given circle
+## keep in given circle (radius = curPos - center)
 def keepCircle(ur_control,Ocent,numLoop,execute):
     # coordinates
     x = []
@@ -176,13 +176,67 @@ def keepCircle(ur_control,Ocent,numLoop,execute):
         if execute == True:
             (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
             ur_control.group.execute(plan, wait=True)
-            time.sleep(0.5)
+            time.sleep(0.1)
 
         return x,y,waypoints
     else:
         # do nothing
         return curx,cury,waypoints
 
+## cirlce (current pos as center) + straight line
+def urCentOLine(ur_control,radius,forward_len,goal):
+    ## from current to the circle
+    x,y,Ocent,waypoints = urCent2Circle(ur_control,radius,2,True)
+    x,y,waypoints = keepCircle(ur_control,Ocent,2,True)
+    ## execute + force monitor 
+    x = []
+    y = []
+
+    # current pos
+    waypoints = []
+    wpose = ur_control.group.get_current_pose().pose
+    curx = wpose.position.x
+    cury = wpose.position.y
+
+    delta_y = goal[1] - Ocent[1]
+    delta_x = goal[0] - Ocent[0]
+    ang2goal = np.arctan2(delta_y, delta_x)
+
+    init_angle = np.arctan2(cury-Ocent[1],curx-Ocent[0])
+    end_angle = 2*np.pi
+    # 36 segments for 180 deg
+    num_ite = 36
+    delta_theta = np.pi/num_ite
+    # forward length for one loop
+    delta_dist = forward_len/(num_ite*2)
+    ite = 0
+    curOcent_x = Ocent[0] 
+    curOcent_y = Ocent[1] 
+
+    while not getGoal([curOcent_x,curOcent_y],goal):
+        ite = ite + 1
+        curOcent_x = Ocent[0] + ite*delta_dist*np.cos(ang2goal)
+        curOcent_y = Ocent[1] + ite*delta_dist*np.sin(ang2goal)
+        curTheta = init_angle + ite*delta_theta
+        wpose.position.x = curOcent_x + radius*np.cos(curTheta)
+        wpose.position.y = curOcent_y + radius*np.sin(curTheta)
+        waypoints.append(copy.deepcopy(wpose))
+
+        x.append(wpose.position.x)
+        y.append(wpose.position.y)
+    
+    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+    ur_control.group.execute(plan, wait=True)
+    ## TODO: add force monitor
+    time.sleep(0.5)
+
+    return x,y,waypoints
+
+def getGoal(curPos,goal):
+    dist = np.sqrt((curPos[0]-goal[0])**2+(curPos[1]-goal[1])**2)
+    if round(dist,3) <= 0.002: # 2mm 
+        return True # achieve the goal
+    else: return False
 
 
 def move_along_boundary(ur_control,lim):
