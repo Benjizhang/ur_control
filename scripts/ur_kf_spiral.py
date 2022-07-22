@@ -128,14 +128,14 @@ if __name__ == '__main__':
     zero_ft_sensor()
     
 
-    Lrang = 0.225 # <<<<<<
+    Lrang = 0.3 # <<<<<<
     ## position of buried objects
     ds_obj = 0.24
     
     LIFT_HEIGHT = +0.10 #(default: +0.10) # <<<<<<
     # saftz = initPtz + LIFT_HEIGHT
     # PENETRATION DEPTH
-    PENE_DEPTH = 0.0  #(default: -0.03) # <<<<<<
+    PENE_DEPTH = -0.05  #(default: -0.03) # <<<<<<
     depthz = initPtz + PENE_DEPTH
     # Cur SAFE FORCE
     CUR_SAFE_FORCE = 10.0  #(default: 15N) # <<<<<<
@@ -239,22 +239,22 @@ if __name__ == '__main__':
                 # x3,y3,waypts = keepCircle(ur_control,Ocent,3,True)
                 
                 ## circle+line
-                x,y,waypts = urCentOLine(ur_control,0.01,0.01,[x_e_wldf,y_e_wldf])
-                (plan, fraction) = ur_control.go_cartesian_path(waypts,execute=False)
-                listener.clear_finish_flag()
-                zero_ft_sensor()
-                ur_control.group.execute(plan, wait=False)
-
-                ## go to the goal (line)
-                # ur_control.set_speed_slider(normalVelScale)
-                # waypoints = []
-                # wpose.position.x = x_e_wldf
-                # wpose.position.y = y_e_wldf
-                # waypoints.append(copy.deepcopy(wpose))
-                # (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+                # x,y,waypts = urCentOLine(ur_control,0.01,0.01,[x_e_wldf,y_e_wldf])
+                # (plan, fraction) = ur_control.go_cartesian_path(waypts,execute=False)
                 # listener.clear_finish_flag()
                 # zero_ft_sensor()
                 # ur_control.group.execute(plan, wait=False)
+
+                # go to the goal (line)
+                # ur_control.set_speed_slider(normalVelScale)
+                waypoints = []
+                wpose.position.x = x_e_wldf
+                wpose.position.y = y_e_wldf
+                waypoints.append(copy.deepcopy(wpose))
+                (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+                listener.clear_finish_flag()
+                zero_ft_sensor()
+                ur_control.group.execute(plan, wait=False)
 
                 ## --- [force monitor] ---
                 rospy.loginfo('clear_finish_flag')
@@ -302,15 +302,15 @@ if __name__ == '__main__':
                             isJamming = JDlib.JD(JDid)
                             if isJamming:
                                 rospy.loginfo('**== Jamming Detected ==** \n')
-                                # ## ----- v1.0 -----
-                                # ur_control.group.stop()
-                                # flargeFlag = True
-                                # ## plot jamming result
-                                # if isPlotJD:
-                                #     ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
-                                #     title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}, Adv {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff,ds_adv)
-                                #     JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
-                                # break
+                                ## ----- v1.0 -----
+                                ur_control.group.stop()
+                                flargeFlag = True
+                                ## plot jamming result
+                                if isPlotJD:
+                                    ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
+                                    title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}, Adv {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff,ds_adv)
+                                    JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
+                                break
 
                                 ## ----- v2.0 -----                                
                                 ### circle + forward slowly
