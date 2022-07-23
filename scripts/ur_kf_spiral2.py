@@ -9,7 +9,7 @@
 
 from cmath import cos
 import copy
-import threading
+import time
 
 # import apriltag_ros.msg
 import numpy as np
@@ -35,7 +35,7 @@ from functions.jamming_detector import JDLib
 # from functions.jamming_detector import plotJDRes
 from functions.handle_drag_force import smooth_fd_kf, get_mean
 # import robotiq_ft_sensor.srv
-from functions.drawTraj import urSpiralTraj,urOtraj,urCent2Circle,urPt2Circle,keepCircle,urCentOLine
+from functions.drawTraj import urSpiralTraj,urOtraj,urCent2Circle,urPt2Circle,keepCircle2,urCentOLine
 from functions.saftyCheck import saftyCheckHard
 from functions.saftyCheck import SfatyPara
 
@@ -130,18 +130,18 @@ if __name__ == '__main__':
     zero_ft_sensor()
     
 
-    Lrang = 0.2 # <<<<<<
+    Lrang = 0.3 # <<<<<<
     ## position of buried objects
     ds_obj = 0.24
     
     LIFT_HEIGHT = +0.10 #(default: +0.10) # <<<<<<
     # saftz = initPtz + LIFT_HEIGHT
     # PENETRATION DEPTH
-    PENE_DEPTH = 0.05  #(default: -0.03) # <<<<<<
+    PENE_DEPTH = -0.05  #(default: -0.03) # <<<<<<
     depthz = initPtz + PENE_DEPTH
     # Cur SAFE FORCE
     CUR_SAFE_FORCE = 10.0  #(default: 15N) # <<<<<<
-    flargeFlag = 0
+    
     # folder name
     fd_name = '20220720spiralTraj/data/' # <<<<<<
     fig_path = '/home/zhangzeqing/Nutstore Files/Nutstore/20220720spiralTraj/fig'
@@ -178,6 +178,7 @@ if __name__ == '__main__':
     for j in range(1,21): # <<<<<<
         #region： #experiment of 1 strokes    
         for i in range(1,2): #<<<<<<
+            flargeFlag = 0
             # current angle (deg)
             theta_cur = 90
 
@@ -311,13 +312,48 @@ if __name__ == '__main__':
                                 ## ----- v2.0 -----                                
                                 ### circle + forward slowly
                                 # urCentOLine(ur_control,0.02,0.01,[x_e_wldf,y_e_wldf])
+                ## if JD1 changes the state, then using circle traj.
+                if flargeFlag:
+                    ## give circle traj.
+                    ## from current to the circle
+                    x,y,Ocent,waypoints1 = urCent2Circle(ur_control,0.01,2,False)
+                    x,y,waypoints2 = keepCircle2(ur_control,Ocent,3,False,waypoints1[-1])
+                    waypts = waypoints1+waypoints2
+                    (plan, fraction) = ur_control.go_cartesian_path(waypts,execute=False)
+                    listener.clear_finish_flag()
+                    zero_ft_sensor()
+                    ur_control.group.execute(plan, wait=False)
 
+                    ## --- [force monitor] ---
+                    rospy.loginfo('clear_finish_flag')
+                    while not listener.read_finish_flag():                    
+                        ## measure the force val/dir
+                        f_val = listener.get_force_val()
+                        f_dir = listener.get_force_dir()
+                        if f_val is not None:
+                            ## most conservative way (most safe)
+                            if np.round(f_val,6) > CUR_SAFE_FORCE:
+                                rospy.loginfo('==== Large Force Warning ==== \n')
+                                ur_control.group.stop()
+                                flargeFlag = True
+                                break
+                            ## path distance
+                            cur_pos = ur_control.group.get_current_pose().pose
+                            curx = cur_pos.position.x
+                            cury = cur_pos.position.y
+                            dist = round(np.abs(cury - y_s_wldf),6)                            
+                            ### only record the stable duration
+                            if round(dist - ds_min, 6) >= 0:
+                                df_ls.append(round(f_val,6))
+                                dr_ls.append(round(f_dir,6))
+                                ds_ls.append(dist)
                 
                 ## log (external)
                 if isSaveForce ==  1:
                     allData = zip(df_ls,dr_ls,ds_ls)
                     ## start to record the data from Ft300
-                    with open('/home/zhangzeqing/Nutstore Files/Nutstore/{}/znv_exp{}.csv'.format(fd_name,1*(j-1)+i),'a',newline="\n")as f:
+                    now_date = time.strftime("%m%d%H%M%S", time.localtime())
+                    with open('/home/zhangzeqing/Nutstore Files/Nutstore/{}/{}_exp{}.csv'.format(fd_name,now_date,1*(j-1)+i),'a',newline="\n")as f:
                         f_csv = csv.writer(f) # <<<<<<
                         for row in allData:
                             f_csv.writerow(row)
@@ -325,7 +361,7 @@ if __name__ == '__main__':
                 # rospy.loginfo('Ref Dir(deg): {}'.format(theta_cur))
                 # rospy.loginfo('{}-th loop finished'.format(i))
 
-                ## if no jamming, plot it， and ds_ls not empty
+                ## Plot, if no jamming and ds_ls not empty
                 if isPlotJD and not flargeFlag and ds_ls:
                         ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
                         title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, NoJD'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls))
