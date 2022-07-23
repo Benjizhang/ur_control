@@ -9,6 +9,7 @@
 from cmath import cos
 import copy
 import threading
+import time
 
 # import apriltag_ros.msg
 import numpy as np
@@ -239,22 +240,22 @@ if __name__ == '__main__':
                 # x3,y3,waypts = keepCircle(ur_control,Ocent,3,True)
                 
                 ## circle+line
-                # x,y,waypts = urCentOLine(ur_control,0.01,0.01,[x_e_wldf,y_e_wldf])
-                # (plan, fraction) = ur_control.go_cartesian_path(waypts,execute=False)
-                # listener.clear_finish_flag()
-                # zero_ft_sensor()
-                # ur_control.group.execute(plan, wait=False)
-
-                # go to the goal (line)
-                # ur_control.set_speed_slider(normalVelScale)
-                waypoints = []
-                wpose.position.x = x_e_wldf
-                wpose.position.y = y_e_wldf
-                waypoints.append(copy.deepcopy(wpose))
-                (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+                x,y,waypts = urCentOLine(ur_control,0.01,0.01,[x_e_wldf,y_e_wldf])
+                (plan, fraction) = ur_control.go_cartesian_path(waypts,execute=False)
                 listener.clear_finish_flag()
                 zero_ft_sensor()
                 ur_control.group.execute(plan, wait=False)
+
+                # go to the goal (line)
+                # ur_control.set_speed_slider(normalVelScale)
+                # waypoints = []
+                # wpose.position.x = x_e_wldf
+                # wpose.position.y = y_e_wldf
+                # waypoints.append(copy.deepcopy(wpose))
+                # (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+                # listener.clear_finish_flag()
+                # zero_ft_sensor()
+                # ur_control.group.execute(plan, wait=False)
 
                 ## --- [force monitor] ---
                 rospy.loginfo('clear_finish_flag')
@@ -289,28 +290,28 @@ if __name__ == '__main__':
                             ds_ls.append(dist)
                         
                         ## using jamming detector 1
-                        if len(df_ls) >= ite_bar and len(df_ls)%delta_ite==0:
-                            ## Kalman Filter
-                            fdhat, Pminus = smooth_fd_kf(df_ls)
-                            ## Mean
-                            fdmean = get_mean(df_ls)
-                            ## absolute difference (N)
-                            cur_abs_diff = round(abs(fdhat[-1] - fdmean[-1]),3)
-                            ## detect jamming
-                            # Mx, isJamming = jd1(fdhat, fdmean, 0.5, delta_ite) 
-                            JDlib = JDLib(df_ls,ds_ls,fdhat,fdmean,diff_bar)
-                            isJamming = JDlib.JD(JDid)
-                            if isJamming:
-                                rospy.loginfo('**== Jamming Detected ==** \n')
-                                ## ----- v1.0 -----
-                                ur_control.group.stop()
-                                flargeFlag = True
-                                ## plot jamming result
-                                if isPlotJD:
-                                    ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
-                                    title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}, Adv {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff,ds_adv)
-                                    JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
-                                break
+                        # if len(df_ls) >= ite_bar and len(df_ls)%delta_ite==0:
+                        #     ## Kalman Filter
+                        #     fdhat, Pminus = smooth_fd_kf(df_ls)
+                        #     ## Mean
+                        #     fdmean = get_mean(df_ls)
+                        #     ## absolute difference (N)
+                        #     cur_abs_diff = round(abs(fdhat[-1] - fdmean[-1]),3)
+                        #     ## detect jamming
+                        #     # Mx, isJamming = jd1(fdhat, fdmean, 0.5, delta_ite) 
+                        #     JDlib = JDLib(df_ls,ds_ls,fdhat,fdmean,diff_bar)
+                        #     isJamming = JDlib.JD(JDid)
+                        #     if isJamming:
+                        #         rospy.loginfo('**== Jamming Detected ==** \n')
+                                # ## ----- v1.0 -----
+                                # ur_control.group.stop()
+                                # flargeFlag = True
+                                # ## plot jamming result
+                                # if isPlotJD:
+                                #     ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
+                                #     title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}, Adv {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff,ds_adv)
+                                #     JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
+                                # break
 
                                 ## ----- v2.0 -----                                
                                 ### circle + forward slowly
@@ -321,7 +322,8 @@ if __name__ == '__main__':
                 if isSaveForce ==  1:
                     allData = zip(df_ls,dr_ls,ds_ls)
                     ## start to record the data from Ft300
-                    with open('/home/zhangzeqing/Nutstore Files/Nutstore/{}/znv_exp{}.csv'.format(fd_name,1*(j-1)+i),'a',newline="\n")as f:
+                    now_date = time.strftime("%m%d%H%M%S", time.localtime())
+                    with open('/home/zhangzeqing/Nutstore Files/Nutstore/{}/{}_exp{}.csv'.format(fd_name,now_date,1*(j-1)+i),'a',newline="\n")as f:
                         f_csv = csv.writer(f) # <<<<<<
                         for row in allData:
                             f_csv.writerow(row)
