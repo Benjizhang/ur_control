@@ -114,13 +114,6 @@ if __name__ == '__main__':
     rospy.sleep(1)
 
     ## set the initial pos (i.e., origin of task frame)
-    # initPtx = ur_control.group.get_current_pose().pose.position.x
-    # initPty = ur_control.group.get_current_pose().pose.position.y
-    # initPtz = ur_control.group.get_current_pose().pose.position.z # surface plane
-    # initPtx = -0.5931848696000094
-    # initPty = -0.28895797651231064
-    # initPtz = 0.07731254732208744
-    # [one option] 
     sp = SfatyPara()
     initPtx = sp.originX
     initPty = sp.originY
@@ -142,9 +135,11 @@ if __name__ == '__main__':
     # Cur SAFE FORCE
     CUR_SAFE_FORCE = 10.0  #(default: 15N) # <<<<<<
     
-    # folder name
-    fd_name = '20220720spiralTraj/data/' # <<<<<<
-    fig_path = '/home/zhangzeqing/Nutstore Files/Nutstore/20220720spiralTraj/fig'
+    # folder name    
+    expFolderName = '/20220720spiralTraj' # <<<<<<
+    NutStorePath = '/home/zhangzeqing/Nutstore Files/Nutstore'
+    dataPath = NutStorePath+expFolderName+'/data'
+    figPath = NutStorePath+expFolderName+'/fig'
     isSaveForce = 1           # <<<<<<
     isPlotJD = 1
     # velocity limits setting
@@ -299,19 +294,15 @@ if __name__ == '__main__':
                             isJamming = JDlib.JD(JDid)
                             if isJamming:
                                 rospy.loginfo('**== Jamming Detected ==** \n')
-                                ## ----- v1.0 -----
                                 ur_control.group.stop()
                                 flargeFlag = True
                                 ## plot jamming result
                                 if isPlotJD:
                                     ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
                                     title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}, Adv {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff,ds_adv)
-                                    JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
+                                    JDlib.plotJDRes(ds_obj,title_str,figPath,j)
                                 break
-
-                                ## ----- v2.0 -----                                
-                                ### circle + forward slowly
-                                # urCentOLine(ur_control,0.02,0.01,[x_e_wldf,y_e_wldf])
+                
                 ## if JD1 changes the state, then using circle traj.
                 if flargeFlag:
                     ## give circle traj.
@@ -353,7 +344,7 @@ if __name__ == '__main__':
                     allData = zip(df_ls,dr_ls,ds_ls)
                     ## start to record the data from Ft300
                     now_date = time.strftime("%m%d%H%M%S", time.localtime())
-                    with open('/home/zhangzeqing/Nutstore Files/Nutstore/{}/{}_exp{}.csv'.format(fd_name,now_date,1*(j-1)+i),'a',newline="\n")as f:
+                    with open('{}/{}_exp{}.csv'.format(dataPath,now_date,1*(j-1)+i),'a',newline="\n")as f:
                         f_csv = csv.writer(f) # <<<<<<
                         for row in allData:
                             f_csv.writerow(row)
@@ -365,7 +356,7 @@ if __name__ == '__main__':
                 if isPlotJD and not flargeFlag and ds_ls:
                         ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
                         title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, NoJD'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls))
-                        JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
+                        JDlib.plotJDRes(ds_obj,title_str,figPath,j)
 
             else:
                 rospy.loginfo('Out of the Worksapce:\n x {}, y {}'.format(round(x_e_wldf,3),round(y_e_wldf,3)))

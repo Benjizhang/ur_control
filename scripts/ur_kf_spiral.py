@@ -142,8 +142,12 @@ if __name__ == '__main__':
     CUR_SAFE_FORCE = 10.0  #(default: 15N) # <<<<<<
     flargeFlag = 0
     # folder name
-    fd_name = '20220720spiralTraj/data/' # <<<<<<
-    fig_path = '/home/zhangzeqing/Nutstore Files/Nutstore/20220720spiralTraj/fig'
+    expFolderName = '/20220720spiralTraj' # <<<<<<
+    NutStorePath = '/home/zhangzeqing/Nutstore Files/Nutstore'
+    dataPath = NutStorePath+expFolderName+'/data'
+    figPath = NutStorePath+expFolderName+'/fig'
+    # dataPath = '20220720spiralTraj/data/' # <<<<<<
+    # figPath = '/home/zhangzeqing/Nutstore Files/Nutstore/20220720spiralTraj/fig'
     isSaveForce = 1           # <<<<<<
     isPlotJD = 1
     # velocity limits setting
@@ -310,7 +314,7 @@ if __name__ == '__main__':
                                 # if isPlotJD:
                                 #     ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
                                 #     title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}, Adv {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff,ds_adv)
-                                #     JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
+                                #     JDlib.plotJDRes(ds_obj,title_str,figPath,j)
                                 # break
 
                                 ## ----- v2.0 -----                                
@@ -323,7 +327,7 @@ if __name__ == '__main__':
                     allData = zip(df_ls,dr_ls,ds_ls)
                     ## start to record the data from Ft300
                     now_date = time.strftime("%m%d%H%M%S", time.localtime())
-                    with open('/home/zhangzeqing/Nutstore Files/Nutstore/{}/{}_exp{}.csv'.format(fd_name,now_date,1*(j-1)+i),'a',newline="\n")as f:
+                    with open('{}/{}_exp{}.csv'.format(dataPath,now_date,1*(j-1)+i),'a',newline="\n")as f:
                         f_csv = csv.writer(f) # <<<<<<
                         for row in allData:
                             f_csv.writerow(row)
@@ -332,10 +336,10 @@ if __name__ == '__main__':
                 # rospy.loginfo('{}-th loop finished'.format(i))
 
                 ## if no jamming, plot it， and ds_ls not empty
-                if isPlotJD and not flargeFlag and ds_ls:
-                        ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
-                        title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, NoJD'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls))
-                        JDlib.plotJDRes(ds_obj,title_str,fig_path,j)
+                # if isPlotJD and not flargeFlag and ds_ls:
+                #         ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
+                #         title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, NoJD'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls))
+                #         JDlib.plotJDRes(ds_obj,title_str,figPath,j)
 
             else:
                 rospy.loginfo('Out of the Worksapce:\n x {}, y {}'.format(round(x_e_wldf,3),round(y_e_wldf,3)))
