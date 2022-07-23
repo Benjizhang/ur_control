@@ -1,5 +1,6 @@
 # exp: ur5 + Kalman Filter + JD + spiral traj.
 # with Force Monitor function + listener class
+# [exp id: 07221913_Hill] if JD1 changes the state, then using circle traj. 
 #
 # Penetration Depth: D5cm # <<<<<<
 # speed/velocity: 0.1 （slow motion）
