@@ -22,7 +22,7 @@ from geometry_msgs.msg import PoseArray, TransformStamped
 from std_msgs.msg import String
 
 from tf import transformations as tfs
-from functions.scene_helper import zero_ft_sensor
+from functions.scene_helper import zero_ft_sensor,ft_listener
 from functions.ur_move import MoveGroupPythonInteface,go2Origin,go2GivenPose
 from robotiq_ft_sensor.msg import ft_sensor
 from control_msgs.msg import FollowJointTrajectoryActionResult as rlst
@@ -38,62 +38,6 @@ from functions.handle_drag_force import smooth_fd_kf, get_mean
 from functions.drawTraj import urSpiralTraj,urOtraj,urCent2Circle,urPt2Circle,keepCircle,urCentOLine
 from functions.saftyCheck import saftyCheckHard
 from functions.saftyCheck import SfatyPara
-
-class listener():
-    def __init__(self):
-        
-        self.obj_pose_sub = rospy.Subscriber("robotiq_ft_sensor", ft_sensor, self.detect_callbak, queue_size=1)
-        self.result_status = rospy.Subscriber("/scaled_pos_joint_traj_controller/follow_joint_trajectory/result",rlst,self.callback, queue_size=1)
-        self.lock_read = threading.Lock()
-        self.sensor_data = None
-        self.force_val = None
-        self.force_dir = None
-        self.plan_finished =False
-
-    def detect_callbak(self,msg):
-        # msg = apriltag_ros.msg.AprilTagDetectionArray()
-        # for det in msg.detections:
-        #     det.pose
-        # a=msg.detections[0].pose.pose.pose
-        with self.lock_read:
-            # rospy.loginfo(f"I heard: {msg}")
-            # self.sensor_data = msg.xxx
-
-            # calculate the force values
-            self.force_val = math.sqrt((msg.Fx)**2+(msg.Fy)**2)
-
-            # calculate the force dir. (deg)
-            dir_rad = math.atan2(msg.Fy, msg.Fx)
-            self.force_dir = math.degrees(dir_rad)     
-    
-    def callback(self,msg):
-        # rospy.loginfo('finish callback')
-        with self.lock_read:
-            self.plan_finished =True
-    
-    def clear_finish_flag(self):
-        with self.lock_read:
-            self.plan_finished = False
-    
-    def read_finish_flag(self):
-        with self.lock_read:
-            return self.plan_finished
-    
-
-    #     # rospy.loginfo(msg)
-    
-    def read_sensor(self):
-        with self.lock_read:
-            return self.sensor_data
-    
-    def get_force_val(self):
-        with self.lock_read:
-            return self.force_val
-
-    def get_force_dir(self):
-        with self.lock_read:
-            return self.force_dir
-
 
 if __name__ == '__main__':
     rospy.init_node("test_move")
@@ -150,7 +94,7 @@ if __name__ == '__main__':
     JDid = 1
     diff_bar = 0.5 # N # <<<<<<
 
-    listener = listener()
+    listener = ft_listener()
     ur_control.set_speed_slider(maxVelScale)
 
     ## check exp safety setting at the beginning
@@ -321,82 +265,4 @@ if __name__ == '__main__':
     ur_control.group.execute(plan, wait=True)    
     # endregion
     
-    # region: straight movement
-    # # initial (-0.5181971177386158, 0.2430201440263177, -0.0021684198900551316)
-    # # contact point (-0.47321170688028935, -0.09287122585385203, -0.011764603861335071)
-    # waypoints = []
-    # wpose.position.x = -0.47321170688028935
-    # wpose.position.y = -0.09287122585385203
-    # wpose.position.z = -0.011764603861335071
-    # waypoints.append(copy.deepcopy(wpose))
-    # (plan, fraction) = ur_control.group.compute_cartesian_path(
-    #                             waypoints,   # waypoints to follow
-    #                             0.01,        # eef_step
-    #                             0.0)
-    # ur_control.group.execute(plan, wait=True)
-    
-    # # penetration    
-    # waypoints = []
-    # wpose.position.z -= 0.03
-    # waypoints.append(copy.deepcopy(wpose))
-    # wpose.position.x += 0.01
-    # wpose.position.y += 0.01
-    # waypoints.append(copy.deepcopy(wpose))
-    # wpose.position.x -= 0.01
-    # wpose.position.y -= 0.01
-    # waypoints.append(copy.deepcopy(wpose))
-    # wpose.position.x -= 0.01
-    # wpose.position.y += 0.01
-    # waypoints.append(copy.deepcopy(wpose))
-    # wpose.position.x += 0.01
-    # wpose.position.y -= 0.01
-    # waypoints.append(copy.deepcopy(wpose))
-    # (plan, fraction) = ur_control.group.compute_cartesian_path(
-    #                             waypoints,   # waypoints to follow
-    #                             0.01,        # eef_step
-    #                             0.0)
-    # ur_control.group.execute(plan, wait=True)
-    # rospy.sleep(2)
-
-    # # move right
-    # waypoints = []
-    # wpose.position.y += 0.5
-    # waypoints.append(copy.deepcopy(wpose))
-    # # wpose.position.x += 0.2
-    # # waypoints.append(copy.deepcopy(wpose))
-    # # wpose.position.y -= 0.5
-    # # waypoints.append(copy.deepcopy(wpose))
-    # (plan, fraction) = ur_control.group.compute_cartesian_path(
-    #                             waypoints,   # waypoints to follow
-    #                             0.01,        # eef_step
-    #                             0.0)
-    # listener.clear_finish_flag()
-    # zero_ft_sensor()
-    # ur_control.group.execute(plan, wait=False)
-    # rospy.loginfo('clear_finish_flag')
-    # while not listener.read_finish_flag():
-    #     if listener.get_force_val() is not None:
-    #         f_val = listener.get_force_val()
-    #         f_dir = listener.get_force_dir()
-    #         rospy.loginfo('Force Val( N ): {}'.format(f_val))
-    #         rospy.loginfo('Force Dir(deg): {}'.format(f_dir))
-    #         if f_val > f_safe:
-    #             rospy.loginfo('==== Large Force Warning ==== \n')
-    #             ur_control.group.stop()
-    #             break
-    #         with open('/home/zhangzeqing/Nutstore Files/Nutstore/line_near_exp4.csv','a',newline="\n")as f:
-    #             f_csv = csv.writer(f)
-    #             f_csv.writerow([f_val, f_dir])
-    
-    # # # lift up
-    # waypoints = []
-    # wpose = ur_control.group.get_current_pose().pose
-    # wpose.position.z += 0.1
-    # waypoints.append(copy.deepcopy(wpose))
-    # (plan, fraction) = ur_control.group.compute_cartesian_path(
-    #                     waypoints,   # waypoints to follow
-    #                     0.01,        # eef_step
-    #                     0.0)
-    # ur_control.group.execute(plan, wait=True)
-    # endregion
     rospy.loginfo('shut down')
