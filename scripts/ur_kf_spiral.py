@@ -113,13 +113,6 @@ if __name__ == '__main__':
     rospy.sleep(1)
 
     ## set the initial pos (i.e., origin of task frame)
-    # initPtx = ur_control.group.get_current_pose().pose.position.x
-    # initPty = ur_control.group.get_current_pose().pose.position.y
-    # initPtz = ur_control.group.get_current_pose().pose.position.z # surface plane
-    # initPtx = -0.5931848696000094
-    # initPty = -0.28895797651231064
-    # initPtz = 0.07731254732208744
-    # [one option] 
     sp = SfatyPara()
     initPtx = sp.originX
     initPty = sp.originY
@@ -146,8 +139,6 @@ if __name__ == '__main__':
     NutStorePath = '/home/zhangzeqing/Nutstore Files/Nutstore'
     dataPath = NutStorePath+expFolderName+'/data'
     figPath = NutStorePath+expFolderName+'/fig'
-    # dataPath = '20220720spiralTraj/data/' # <<<<<<
-    # figPath = '/home/zhangzeqing/Nutstore Files/Nutstore/20220720spiralTraj/fig'
     isSaveForce = 1           # <<<<<<
     isPlotJD = 1
     # velocity limits setting
@@ -227,22 +218,7 @@ if __name__ == '__main__':
                 # ur_control.set_speed_slider(0.5)
                 ur_control.set_speed_slider(normalVelScale)
                 zero_ft_sensor()
-                ## sprial traj.
-                # urSpiralTraj(ur_control)
-
-                ## circle traj.
-                # urOtraj(ur_control)
-
-                ## expand/shrink to the given cirlce by spiral traj.
-                # radius = 0.04 # 3cm
-                # numLoop2circle = 2
-                # x,y,Ocent,waypts = urCent2Circle(ur_control,radius,3,True)
-
-                # radius2 = 0.0
-                # x2,y2,waypts = urPt2Circle(ur_control,Ocent,radius2,3,True)
-
-                # x3,y3,waypts = keepCircle(ur_control,Ocent,3,True)
-                
+                                
                 ## circle+line
                 x,y,waypts = urCentOLine(ur_control,0.01,0.01,[x_e_wldf,y_e_wldf])
                 (plan, fraction) = ur_control.go_cartesian_path(waypts,execute=False)
@@ -281,12 +257,6 @@ if __name__ == '__main__':
                         cury = cur_pos.position.y
                         dist = round(np.abs(cury - y_s_wldf),6)
                         
-                        # df_ls.append(round(f_val,6))
-                        # dr_ls.append(round(f_dir,6))
-                        # ds_ls.append(dist)
-                        # rospy.loginfo('ForceVal (N): {}'.format(f_val))
-                        # rospy.loginfo('Distance (m): {}'.format(dist))
-                        
                         ### only record the stable duration
                         if round(dist - ds_min, 6) >= 0:
                             df_ls.append(round(f_val,6))
@@ -316,11 +286,6 @@ if __name__ == '__main__':
                                 #     title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, Diff {}, Adv {}'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls),cur_abs_diff,ds_adv)
                                 #     JDlib.plotJDRes(ds_obj,title_str,figPath,j)
                                 # break
-
-                                ## ----- v2.0 -----                                
-                                ### circle + forward slowly
-                                # urCentOLine(ur_control,0.02,0.01,[x_e_wldf,y_e_wldf])
-
                 
                 ## log (external)
                 if isSaveForce ==  1:
@@ -331,9 +296,7 @@ if __name__ == '__main__':
                         f_csv = csv.writer(f) # <<<<<<
                         for row in allData:
                             f_csv.writerow(row)
-                    f.close()              
-                # rospy.loginfo('Ref Dir(deg): {}'.format(theta_cur))
-                # rospy.loginfo('{}-th loop finished'.format(i))
+                    f.close()
 
                 ## if no jamming, plot it， and ds_ls not empty
                 # if isPlotJD and not flargeFlag and ds_ls:
