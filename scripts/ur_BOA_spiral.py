@@ -76,7 +76,7 @@ if __name__ == '__main__':
     CUR_SAFE_FORCE = 7.0  #(default: 15N) # <<<<<<
     flargeFlag = 0
     # folder name
-    expFolderName = '/20220720spiralTraj' # <<<<<<
+    expFolderName = '/20220727ur_BOA_spiral' # <<<<<<
     NutStorePath = '/home/zhangzeqing/Nutstore Files/Nutstore'
     dataPath = NutStorePath+expFolderName+'/data'
     figPath = NutStorePath+expFolderName+'/fig'
@@ -185,8 +185,8 @@ if __name__ == '__main__':
             # ur_control.group.stop()
             # rospy.sleep(2)                          
 
-            # ur_control.set_speed_slider(0.5)
-            ur_control.set_speed_slider(normalVelScale)
+            ur_control.set_speed_slider(0.5)
+            # ur_control.set_speed_slider(normalVelScale)
                             
             ## circle+line (a.k.a. spiral traj.)
             x,y,waypts = urCentOLine(ur_control,0.01,0.01,[x_e_wldf,y_e_wldf])
@@ -255,7 +255,7 @@ if __name__ == '__main__':
                 allData = zip(df_ls,dr_ls,ds_ls)
                 ## start to record the data from Ft300
                 now_date = time.strftime("%m%d%H%M%S", time.localtime())
-                with open('{}/{}_exp{}.csv'.format(dataPath,now_date,j),'a',newline="\n")as f:
+                with open('{}/{}_slide{}.csv'.format(dataPath,now_date,j),'a',newline="\n")as f:
                     f_csv = csv.writer(f) # <<<<<<
                     for row in allData:
                         f_csv.writerow(row)
@@ -273,7 +273,7 @@ if __name__ == '__main__':
             raise Exception('Out of the Worksapce:\n x {}, y {}'.format(round(x_e_wldf,3),round(y_e_wldf,3)))
         if flargeFlag == 1:
             break
-        rospy.loginfo('Exp {} finished'.format(j))
+        rospy.loginfo('{}-th slide finished'.format(j))
 
     # lift up
     waypoints = []
