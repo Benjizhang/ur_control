@@ -650,6 +650,7 @@ def go2Origin(ur_control):
 
     print('***** Exp Initialized Successfully *****')    
 
+## move to the given pos. in the leap-frog form
 def go2GivenPose(ur_control,pose):
     sp = SfatyPara()
     ## lift up to the safe height
