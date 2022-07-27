@@ -281,6 +281,65 @@ def urCentOLine(ur_control,radius,forward_len,goal):
 
     return x,y,waypoints
 
+## cirlce (current pos as center) + straight line 
+## in simple way: 1 spiral + 0 circle + forward + goal)
+def urCentOLine_sim(ur_control,radius,forward_len,goal):
+    ## from current to the circle
+    x,y,Ocent,waypoints1 = urCent2Circle(ur_control,radius,1,False)
+    # x,y,waypoints2 = keepCircle(ur_control,Ocent,2,False)
+    # x,y,waypoints2 = keepCircle2(ur_control,Ocent,2,False,waypoints1[-1])
+    
+    ## circle+line traj.
+    x = []
+    y = []
+
+    waypoints3 = []
+    # start pos: given pos
+    wpose = copy.deepcopy(waypoints1[-1])
+    # start pos: current pos
+    # wpose = ur_control.group.get_current_pose().pose
+    startx = wpose.position.x
+    starty = wpose.position.y
+
+    delta_y = goal[1] - Ocent[1]
+    delta_x = goal[0] - Ocent[0]
+    ang2goal = np.arctan2(delta_y, delta_x)
+
+    init_angle = np.arctan2(starty-Ocent[1],startx-Ocent[0])
+    end_angle = 2*np.pi
+    # 36 segments for 180 deg
+    num_ite = 36
+    delta_theta = np.pi/num_ite
+    # forward length for one loop
+    delta_dist = forward_len/(num_ite*2)
+    ite = 0
+    curOcent_x = Ocent[0] 
+    curOcent_y = Ocent[1] 
+
+    while not getGoal([curOcent_x,curOcent_y],goal):
+        ite = ite + 1
+        curOcent_x = Ocent[0] + ite*delta_dist*np.cos(ang2goal)
+        curOcent_y = Ocent[1] + ite*delta_dist*np.sin(ang2goal)
+        curTheta = init_angle + ite*delta_theta
+        wpose.position.x = curOcent_x + radius*np.cos(curTheta)
+        wpose.position.y = curOcent_y + radius*np.sin(curTheta)
+        waypoints3.append(copy.deepcopy(wpose))
+
+        x.append(wpose.position.x)
+        y.append(wpose.position.y)
+    
+    # x,y,waypoints4 = keepCircle2(ur_control,[curOcent_x,curOcent_y],2,False,waypoints3[-1])
+    ## directly go the goal
+    waypoints4 = []
+    wpose.position.x = goal[0]
+    wpose.position.y = goal[1]
+    waypoints4.append(copy.deepcopy(wpose))
+
+    ## execute traj. together
+    waypoints = waypoints1+waypoints3+waypoints4
+
+    return x,y,waypoints
+
 def getGoal(curPos,goal):
     dist = np.sqrt((curPos[0]-goal[0])**2+(curPos[1]-goal[1])**2)
     if round(dist,4) < 0.001: # 2mm 
