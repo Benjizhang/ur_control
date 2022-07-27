@@ -32,7 +32,7 @@ import sys
 import csv
 from functions.jamming_detector import JDLib
 from functions.handle_drag_force import smooth_fd_kf, get_mean
-from functions.drawTraj import urSpiralTraj,urOtraj,urCent2Circle,urPt2Circle,keepCircle,urCentOLine
+from functions.drawTraj import urCentOLine,urCentOLine_sim,urCent2Circle
 from functions.saftyCheck import saftyCheckHard
 from functions.saftyCheck import SfatyPara
 
@@ -128,6 +128,9 @@ if __name__ == '__main__':
     go2GivenPose(ur_control,pose)
     rospy.sleep(0.5)
     # zero_ft_sensor()
+    fd_nonjamming = 3  # 3N
+    traj_radius = 0.01 # xx cm
+    pre_forward_dist = 0.0 
 
     ## start the loop
     for j in range(1,21): # <<<<<<
@@ -151,9 +154,13 @@ if __name__ == '__main__':
         ## list to record the df, dr, ds
         df_ls = []
         dr_ls = []
-        ds_ls = []            
+        ds_ls = []    
+        ds_ite_ls = []
+        maxForward_ls = []      
 
-        
+        vect2goalx = x_e_wldf - x_s_wldf
+        vect2goaly = y_e_wldf - y_s_wldf
+        norm_vect2goal = np.sqrt(vect2goalx**2+vect2goaly**2)
         ## goal
         # x_e_wldf = initPtx + 0.12
         # y_e_wldf = initPty + 0.3
@@ -187,9 +194,11 @@ if __name__ == '__main__':
 
             ur_control.set_speed_slider(0.5)
             # ur_control.set_speed_slider(normalVelScale)
-                            
+            
             ## circle+line (a.k.a. spiral traj.)
-            x,y,waypts = urCentOLine(ur_control,0.01,0.01,[x_e_wldf,y_e_wldf])
+            # x,y,waypts = urCentOLine(ur_control,0.01,0.01,[x_e_wldf,y_e_wldf])
+            x,y,waypts = urCentOLine_sim(ur_control,traj_radius,0.01,[x_e_wldf,y_e_wldf])
+            # x,y,Ocent,waypts = urCent2Circle(ur_control,traj_radius,1,False)
             (plan, fraction) = ur_control.go_cartesian_path(waypts,execute=False)
             ## move along the generated path
             listener.clear_finish_flag()
@@ -207,6 +216,9 @@ if __name__ == '__main__':
             # zero_ft_sensor()
             # ur_control.group.execute(plan, wait=False)
 
+            ite = 1
+            cent_dist = 0
+            maxForward = 0.005
             ## --- [force monitor] ---
             rospy.loginfo('clear_finish_flag')
             while not listener.read_finish_flag():                    
@@ -225,37 +237,57 @@ if __name__ == '__main__':
                     cur_pos = ur_control.group.get_current_pose().pose
                     curx = cur_pos.position.x
                     cury = cur_pos.position.y
-                    ## TODO: distance calculation
-                    dist = round(np.abs(cury - y_s_wldf),6)
                     
-                    ## TODO: more info should be recorded
-                    ### only record the stable duration
-                    if round(dist - ds_min, 6) >= 0:
-                        df_ls.append(round(f_val,6))
-                        dr_ls.append(round(f_dir,6))
-                        ds_ls.append(dist)
+                    vect2curx = curx - x_s_wldf
+                    vect2cury = cury - y_s_wldf
+                    norm_vect2cur = np.sqrt(vect2curx**2+vect2cury**2)
+                    # temp1 = round(vect2goalx*vect2curx + vect2goaly*vect2cury,6)
+                    # temp2 = round(norm_vect2goal*norm_vect2cur,6)
+                    temp1 = vect2goalx*vect2curx + vect2goaly*vect2cury
+                    temp2 = norm_vect2goal*norm_vect2cur
+                    temp3 = round(abs(temp1 - temp2),6)
+                    forward_dist = round(norm_vect2cur,3) # lie in [startpos, goal]                                        
+                    if temp3 <=  1e-07 and forward_dist > 0.001 and forward_dist - pre_forward_dist >0:
+                        print(temp3)
+                        # dist = round(norm_vect2cur-traj_radius,4) # x.x mm                        
+                        cent_dist = round(forward_dist - traj_radius,3)
+                        ds_ls.append(cent_dist)
+                        ds_ite_ls.append(ite)
+                        print('----center dist {:.3f}----'.format(cent_dist))
+                        pre_forward_dist = forward_dist
+                        # tell BOA the observed value
+                        probePt_dict = {'x':curx - originx,'y':cury - originy}                        
+                        bo.register(params=probePt_dict, target=fd_nonjamming)
                     
-                    ## tell the pos & feedback to the BOA
-                    ### cur pos (base frame) and relative pos (for BOA)
-                    # curx = ur_control.group.get_current_pose().pose.position.x
-                    # cury = ur_control.group.get_current_pose().pose.position.y
-                    relx = curx - originx
-                    rely = cury - originy
-                    ## return values into BOA
-                    # form the point in dict. type
-                    probePt_dict = {'x':relx,'y':rely}
-                    # drag force 
-                    probePtz = f_val
-                    # tell BOA the observed value
-                    bo.register(params=probePt_dict, target=probePtz)
+                    df_ls.append(round(f_val,4))
+                    dr_ls.append(round(f_dir,4))
 
-                    
+                    ite = ite+1
+            ## if get contact, tell to the BOA
+            if flargeFlag == True:
+                curx = ur_control.group.get_current_pose().pose.position.x
+                cury = ur_control.group.get_current_pose().pose.position.y
+                ## return values into BOA
+                probePt_dict = {'x':curx - originx,'y':cury - originy}
+                # tell BOA the observed value
+                bo.register(params=probePt_dict, target=f_val)
+
+                df_ls.append(round(f_val,4))
+                dr_ls.append(round(f_dir,4))
+
             ## log (external)
             if isSaveForce ==  1:
-                allData = zip(df_ls,dr_ls,ds_ls)
-                ## start to record the data from Ft300
+                allData = zip(df_ls,dr_ls)
+                ## log: force val - force dir
                 now_date = time.strftime("%m%d%H%M%S", time.localtime())
-                with open('{}/{}_slide{}.csv'.format(dataPath,now_date,j),'a',newline="\n")as f:
+                with open('{}/{}_slide{}_Fdvaldir.csv'.format(dataPath,now_date,j),'a',newline="\n")as f:
+                    f_csv = csv.writer(f) # <<<<<<
+                    for row in allData:
+                        f_csv.writerow(row)
+                f.close()
+                ## log: ite - center distance
+                allData = zip(ds_ite_ls,ds_ls)
+                with open('{}/{}_slide{}_Distance.csv'.format(dataPath,now_date,j),'a',newline="\n")as f:
                     f_csv = csv.writer(f) # <<<<<<
                     for row in allData:
                         f_csv.writerow(row)
