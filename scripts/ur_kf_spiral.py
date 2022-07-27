@@ -125,12 +125,12 @@ if __name__ == '__main__':
             ds_ls = []            
 
             # start
-            x_s_wldf = initPtx + 0.1
-            y_s_wldf = initPty
+            x_s_wldf = initPtx + 0.
+            y_s_wldf = initPty + 0.105
 
             # goal (cannot approach since the buried object)
-            x_e_wldf = x_s_wldf
-            y_e_wldf = y_s_wldf + Lrang   
+            x_e_wldf = initPtx + 0.12
+            y_e_wldf = initPty + 0.3
 
             ## lift up
             ur_control.set_speed_slider(maxVelScale)
