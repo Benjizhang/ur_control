@@ -35,6 +35,7 @@ from functions.handle_drag_force import smooth_fd_kf, get_mean
 from functions.drawTraj import urCentOLine,urCentOLine_sim,urCent2Circle
 from functions.saftyCheck import saftyCheckHard
 from functions.saftyCheck import SfatyPara
+from sklearn.gaussian_process.kernels import RBF,Matern
 
 if __name__ == '__main__':
     rospy.init_node("test_move")
@@ -47,7 +48,19 @@ if __name__ == '__main__':
     elif input == 1:
         exp_mode = 'normal'
     else:
-        raise Exception('Error: Invalid Exp Mode!')  
+        raise Exception('Error: Invalid Exp Mode!')
+    
+    ##--- BOA related codes ---#
+    # kernel = RBF(length_scale=8, length_scale_bounds='fixed')
+    # kernel = Matern(length_scale=1, length_scale_bounds='fixed',nu=np.inf)
+    lenScaleBound ='fixed'
+    # lenScaleBound = (1e-5, 1e5)
+    # lenScaleBound = (0.01, 0.2)
+    kernel = Matern(length_scale=0.04, length_scale_bounds=lenScaleBound, nu=np.inf)
+    # kernel = Matern(length_scale=0.04, length_scale_bounds=lenScaleBound, nu=2.5)
+    # kernel = Matern(length_scale=0.04, length_scale_bounds=lenScaleBound, nu=1.5)
+    str_kernel = str(kernel)
+    ##=== BOA related codes ===#
 
     ############# ur control #############
     # ur_control = MoveGroupPythonInteface(sim=True)  #simu
@@ -317,8 +330,8 @@ if __name__ == '__main__':
             rospy.loginfo('Out of the Worksapce:\n x {}, y {}'.format(round(x_e_wldf,3),round(y_e_wldf,3)))
             ur_control.group.stop()
             raise Exception('Out of the Worksapce:\n x {}, y {}'.format(round(x_e_wldf,3),round(y_e_wldf,3)))
-        if flargeFlag == 1:
-            break
+        # if flargeFlag == 1:
+        #     break
         rospy.loginfo('{}-th slide finished'.format(j))
 
     # lift up
