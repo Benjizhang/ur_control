@@ -39,7 +39,16 @@ from functions.saftyCheck import SfatyPara
 if __name__ == '__main__':
     rospy.init_node("test_move")
     moveit_commander.roscpp_initialize(sys.argv)
-    
+
+    ## input the exp mode
+    input = int(input("Exp Mode: trial(0), normal(1) ") or "0")
+    if input == 0:
+        exp_mode = 'trial'
+    elif input == 1:
+        exp_mode = 'normal'
+    else:
+        raise Exception('Error: Invalid Exp Mode!')  
+
     ############# ur control #############
     # ur_control = MoveGroupPythonInteface(sim=True)  #simu
     ur_control = MoveGroupPythonInteface(sim=False)  #real
@@ -70,8 +79,16 @@ if __name__ == '__main__':
     LIFT_HEIGHT = +0.10 #(default: +0.10) # <<<<<<
     # saftz = initPtz + LIFT_HEIGHT
     # PENETRATION DEPTH
-    PENE_DEPTH = 0.05  #(default: -0.03) # <<<<<<
+    if exp_mode == 'trial':
+        PENE_DEPTH = 0.05
+        normalVelScale = 0.5 # <<<<<<
+    elif exp_mode == 'normal':
+        PENE_DEPTH = -0.05  #(default: -0.03) # <<<<<<
+        normalVelScale = 0.1 # <<<<<<
+    else:
+        raise Exception('Error: Invalid Exp Mode!')    
     depthz = originz + PENE_DEPTH
+    maxVelScale    = 0.3 # <<<<<<
     # Cur SAFE FORCE
     CUR_SAFE_FORCE = 7.0  #(default: 15N) # <<<<<<
     flargeFlag = 0
@@ -82,9 +99,7 @@ if __name__ == '__main__':
     figPath = NutStorePath+expFolderName+'/fig'
     isSaveForce = 1           # <<<<<<
     isPlotJD = 1
-    # velocity limits setting
-    maxVelScale    = 0.3 # <<<<<<
-    normalVelScale = 0.1 # <<<<<<
+    ## JD setting
     ite_bar = 30
     delta_ite = 10
     ds_min = 0.005
@@ -192,8 +207,7 @@ if __name__ == '__main__':
             # ur_control.group.stop()
             # rospy.sleep(2)                          
 
-            ur_control.set_speed_slider(0.5)
-            # ur_control.set_speed_slider(normalVelScale)
+            ur_control.set_speed_slider(normalVelScale)
             
             ## circle+line (a.k.a. spiral traj.)
             # x,y,waypts = urCentOLine(ur_control,0.01,0.01,[x_e_wldf,y_e_wldf])
