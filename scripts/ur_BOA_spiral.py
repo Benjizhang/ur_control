@@ -21,7 +21,6 @@ import rospy
 from geometry_msgs.msg import PoseArray, TransformStamped
 from std_msgs.msg import String
 
-from bayes_opt import BayesianOptimization, UtilityFunction
 from tf import transformations as tfs
 from functions.scene_helper import zero_ft_sensor,ft_listener
 from functions.ur_move import MoveGroupPythonInteface,go2Origin,go2GivenPose
@@ -35,7 +34,9 @@ from functions.handle_drag_force import smooth_fd_kf, get_mean
 from functions.drawTraj import urCentOLine,urCentOLine_sim,urCent2Circle
 from functions.saftyCheck import saftyCheckHard
 from functions.saftyCheck import SfatyPara
+from bayes_opt import BayesianOptimization, UtilityFunction
 from sklearn.gaussian_process.kernels import RBF,Matern
+from functions.boa_helper import plot_2d2
 
 if __name__ == '__main__':
     rospy.init_node("test_move")
@@ -50,6 +51,12 @@ if __name__ == '__main__':
     else:
         raise Exception('Error: Invalid Exp Mode!')
     
+    ## set the initial pos (i.e., origin of task frame)
+    sp = SfatyPara()
+    originx = sp.originX
+    originy = sp.originY
+    originz = sp.originZ
+
     ##--- BOA related codes ---#
     # kernel = RBF(length_scale=8, length_scale_bounds='fixed')
     # kernel = Matern(length_scale=1, length_scale_bounds='fixed',nu=np.inf)
@@ -60,6 +67,14 @@ if __name__ == '__main__':
     # kernel = Matern(length_scale=0.04, length_scale_bounds=lenScaleBound, nu=2.5)
     # kernel = Matern(length_scale=0.04, length_scale_bounds=lenScaleBound, nu=1.5)
     str_kernel = str(kernel)
+
+    ## initial distribution in BOA
+    xrange = np.linspace(sp.xmin, sp.xmax, 125)
+    yrange = np.linspace(sp.ymin, sp.ymax, 175)
+    X, Y = np.meshgrid(xrange, yrange)
+    xrange = X.ravel()
+    yrange = Y.ravel()
+    XY = np.vstack([xrange, yrange]).T
     ##=== BOA related codes ===#
 
     ############# ur control #############
@@ -69,21 +84,13 @@ if __name__ == '__main__':
 
     ur_control.group.get_planning_frame()
     ur_control.group.get_end_effector_link()
-
     ur_control.remove_allobjects()
     res = ur_control.play_program()
     rospy.loginfo("play_program: {}".format(res))
-    rospy.sleep(1)
-
-    ## set the initial pos (i.e., origin of task frame)
-    sp = SfatyPara()
-    originx = sp.originX
-    originy = sp.originY
-    originz = sp.originZ
+    rospy.sleep(1)    
 
     ## set zero to the ft 300
-    zero_ft_sensor()
-    
+    zero_ft_sensor()    
 
     Lrang = 0.3 # <<<<<<
     ## position of buried objects
@@ -125,9 +132,10 @@ if __name__ == '__main__':
                         verbose=2,
                         random_state=1)
     # plt.ioff()
-    util = UtilityFunction(kind="ucb", 
+    bo.set_gp_params(kernel=kernel)
+    util = UtilityFunction(kind="ei", 
                         kappa = 2, 
-                        xi=0.8,
+                        xi=0.5,
                         kappa_decay=1,
                         kappa_decay_delay=0)
     
@@ -144,7 +152,7 @@ if __name__ == '__main__':
     # go2Origin(ur_control)
 
     ## go the init pos of the exp 
-    pose = [0 for x in range(0,3)]
+    pose = [0 for hh in range(0,3)]
     pose[0] = originx + 0.1
     pose[1] = originy 
     pose[2] = sp.SAFEZ 
@@ -184,7 +192,9 @@ if __name__ == '__main__':
         dr_ls = []
         ds_ls = []    
         ds_ite_ls = []
-        maxForward_ls = []      
+        maxForward_ls = []  
+        rela_x_ls = [] # relative x 
+        rela_y_ls = []
 
         vect2goalx = x_e_wldf - x_s_wldf
         vect2goaly = y_e_wldf - y_s_wldf
@@ -223,9 +233,9 @@ if __name__ == '__main__':
             ur_control.set_speed_slider(normalVelScale)
             
             ## circle+line (a.k.a. spiral traj.)
-            # x,y,waypts = urCentOLine(ur_control,0.01,0.01,[x_e_wldf,y_e_wldf])
-            x,y,waypts = urCentOLine_sim(ur_control,traj_radius,0.01,[x_e_wldf,y_e_wldf])
-            # x,y,Ocent,waypts = urCent2Circle(ur_control,traj_radius,1,False)
+            # _,_,waypts = urCentOLine(ur_control,0.01,0.01,[x_e_wldf,y_e_wldf])
+            _,_,waypts = urCentOLine_sim(ur_control,traj_radius,0.01,[x_e_wldf,y_e_wldf])
+            # _,_,Ocent,waypts = urCent2Circle(ur_control,traj_radius,1,False)
             (plan, fraction) = ur_control.go_cartesian_path(waypts,execute=False)
             ## move along the generated path
             listener.clear_finish_flag()
@@ -288,6 +298,8 @@ if __name__ == '__main__':
                     
                     df_ls.append(round(f_val,4))
                     dr_ls.append(round(f_dir,4))
+                    rela_x_ls.append(round(curx - originx,4))
+                    rela_y_ls.append(round(cury - originy,4))
 
                     ite = ite+1
             ## if get contact, tell to the BOA
@@ -301,11 +313,13 @@ if __name__ == '__main__':
 
                 df_ls.append(round(f_val,4))
                 dr_ls.append(round(f_dir,4))
+                rela_x_ls.append(round(curx - originx,4))
+                rela_y_ls.append(round(cury - originy,4))
 
             ## log (external)
             if isSaveForce ==  1:
-                allData = zip(df_ls,dr_ls)
-                ## log: force val - force dir
+                allData = zip(rela_x_ls,rela_y_ls,df_ls,dr_ls)
+                ## log: x_rela, y_rela, force val, force dir
                 now_date = time.strftime("%m%d%H%M%S", time.localtime())
                 with open('{}/{}_slide{}_Fdvaldir.csv'.format(dataPath,now_date,j),'a',newline="\n")as f:
                     f_csv = csv.writer(f) # <<<<<<
@@ -326,6 +340,10 @@ if __name__ == '__main__':
             #         title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, NoJD'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls))
             #         JDlib.plotJDRes(ds_obj,title_str,figPath,j)
 
+            ## plot BOA results
+            ## Def: plot_2d2(slide_id, bo, util, kernel,x,y,XY, f_max, fig_path, name=None)
+            plot_2d2(j, bo, util, kernel, xrange,yrange,XY, CUR_SAFE_FORCE, figPath+'/slide{}_'.format(j), "{:03}".format(len(bo._space.params)))
+            
         else:
             rospy.loginfo('Out of the Worksapce:\n x {}, y {}'.format(round(x_e_wldf,3),round(y_e_wldf,3)))
             ur_control.group.stop()
