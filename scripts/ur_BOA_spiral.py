@@ -285,7 +285,7 @@ if __name__ == '__main__':
                     temp3 = round(abs(temp1 - temp2),6)
                     forward_dist = round(norm_vect2cur,3) # lie in [startpos, goal]                                        
                     if temp3 <=  1e-07 and forward_dist > 0.001 and forward_dist - pre_forward_dist >0:
-                        print(temp3)
+                        # print(temp3)
                         # dist = round(norm_vect2cur-traj_radius,4) # x.x mm                        
                         cent_dist = round(forward_dist - traj_radius,3)
                         ds_ls.append(cent_dist)
