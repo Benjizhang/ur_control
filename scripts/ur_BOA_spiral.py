@@ -23,7 +23,7 @@ from std_msgs.msg import String
 
 from tf import transformations as tfs
 from functions.scene_helper import zero_ft_sensor,ft_listener
-from functions.ur_move import MoveGroupPythonInteface,go2Origin,go2GivenPose
+from functions.ur_move import MoveGroupPythonInteface,go2Origin,go2GivenPose,go2GivenPose2
 from robotiq_ft_sensor.msg import ft_sensor
 from control_msgs.msg import FollowJointTrajectoryActionResult as rlst
 import moveit_commander
@@ -170,7 +170,6 @@ if __name__ == '__main__':
 
     ## start the loop
     for j in range(1,21): # <<<<<<
-        flargeFlag = 0
         print("--------- {}-th slide ---------".format(j))
         ## record the start x,y (i.e., current pos) in UR frame
         wpose = ur_control.group.get_current_pose().pose
@@ -204,6 +203,12 @@ if __name__ == '__main__':
         vect2goalx = x_e_wldf - x_s_wldf
         vect2goaly = y_e_wldf - y_s_wldf
         norm_vect2goal = np.sqrt(vect2goalx**2+vect2goaly**2)
+
+        ## initialize parameters for each slide
+        flargeFlag = 0
+        ite = 1
+        cent_dist = 0
+        
         ## goal
         # x_e_wldf = initPtx + 0.12
         # y_e_wldf = initPty + 0.3
@@ -257,10 +262,7 @@ if __name__ == '__main__':
             # listener.clear_finish_flag()
             # zero_ft_sensor()
             # ur_control.group.execute(plan, wait=False)
-
-            ite = 1
-            cent_dist = 0
-            maxForward = 0.005
+            
             ## --- [force monitor] ---
             rospy.loginfo('clear_finish_flag')
             while not listener.read_finish_flag():                    
@@ -341,7 +343,8 @@ if __name__ == '__main__':
                 pose[0] = x_e_wldf
                 pose[1] = y_e_wldf
                 pose[2] = depthz
-                go2GivenPose(ur_control,pose)
+                # go2GivenPose(ur_control,pose)
+                go2GivenPose2(ur_control,pose,normalVelScale)
                 ## sprial traj. to the previous start position
                 _,_,waypts = urCentOLine_sim(ur_control,traj_radius,0.01,[x_s_wldf,y_s_wldf])
                 # _,_,Ocent,waypts = urCent2Circle(ur_control,traj_radius,1,False)
@@ -369,7 +372,7 @@ if __name__ == '__main__':
                         cur_pos = ur_control.group.get_current_pose().pose
                         curx = cur_pos.position.x
                         cury = cur_pos.position.y
-                        
+                        ## TODO: this is a bug below
                         vect2curx = curx - x_s_wldf
                         vect2cury = cury - y_s_wldf
                         norm_vect2cur = np.sqrt(vect2curx**2+vect2cury**2)
