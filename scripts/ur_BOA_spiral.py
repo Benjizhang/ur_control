@@ -111,7 +111,7 @@ if __name__ == '__main__':
     maxVelScale    = 0.3 # <<<<<<
     # Cur SAFE FORCE
     CUR_SAFE_FORCE = 7.0  #(default: 15N) # <<<<<<
-    flargeFlag = 0
+    
     # folder name
     expFolderName = '/20220727ur_BOA_spiral' # <<<<<<
     NutStorePath = '/home/zhangzeqing/Nutstore Files/Nutstore'
@@ -170,6 +170,7 @@ if __name__ == '__main__':
 
     ## start the loop
     for j in range(1,21): # <<<<<<
+        flargeFlag = 0
         print("--------- {}-th slide ---------".format(j))
         ## record the start x,y (i.e., current pos) in UR frame
         wpose = ur_control.group.get_current_pose().pose
@@ -333,6 +334,97 @@ if __name__ == '__main__':
                 boa_y_ls.append(round(boay,4))
                 boa_return_ls.append(round(f_val,4))
 
+            ## if get contact then start from the goal to the start pos.
+            if flargeFlag == True:                
+                ## move to the previous goal;
+                pose = [0 for hh in range(0,3)]
+                pose[0] = x_e_wldf
+                pose[1] = y_e_wldf
+                pose[2] = depthz
+                go2GivenPose(ur_control,pose)
+                ## sprial traj. to the previous start position
+                _,_,waypts = urCentOLine_sim(ur_control,traj_radius,0.01,[x_s_wldf,y_s_wldf])
+                # _,_,Ocent,waypts = urCent2Circle(ur_control,traj_radius,1,False)
+                (plan, fraction) = ur_control.go_cartesian_path(waypts,execute=False)
+                ## move along the generated path
+                listener.clear_finish_flag()
+                zero_ft_sensor()
+                ur_control.group.execute(plan, wait=False)
+                ## --- [force monitor] ---
+                rospy.loginfo('clear_finish_flag')
+                flargeFlag = False
+                while not listener.read_finish_flag():                    
+                    ## measure the force val/dir
+                    f_val = listener.get_force_val()
+                    f_dir = listener.get_force_dir()
+                    if f_val is not None:
+                        ## most conservative way (most safe)
+                        if np.round(f_val,6) > CUR_SAFE_FORCE:
+                            rospy.loginfo('==== Large Force Warning ==== \n')
+                            ur_control.group.stop()
+                            flargeFlag = True
+                            break                    
+                        
+                        ## log list
+                        cur_pos = ur_control.group.get_current_pose().pose
+                        curx = cur_pos.position.x
+                        cury = cur_pos.position.y
+                        
+                        vect2curx = curx - x_s_wldf
+                        vect2cury = cury - y_s_wldf
+                        norm_vect2cur = np.sqrt(vect2curx**2+vect2cury**2)
+                        # temp1 = round(vect2goalx*vect2curx + vect2goaly*vect2cury,6)
+                        # temp2 = round(norm_vect2goal*norm_vect2cur,6)
+                        temp1 = vect2goalx*vect2curx + vect2goaly*vect2cury
+                        temp2 = norm_vect2goal*norm_vect2cur
+                        temp3 = round(abs(temp1 - temp2),6)
+                        forward_dist = round(norm_vect2cur,3) # lie in [startpos, goal]                                        
+                        if temp3 <=  1e-07 and forward_dist > 0.001 and forward_dist - pre_forward_dist >0:
+                            # print(temp3)
+                            # dist = round(norm_vect2cur-traj_radius,4) # x.x mm                        
+                            cent_dist = round(forward_dist - traj_radius,3)
+                            ds_ls.append(cent_dist)
+                            ds_ite_ls.append(ite)
+                            print('----center dist {:.3f}----'.format(cent_dist))
+                            pre_forward_dist = forward_dist
+                            # tell BOA the observed value
+                            boax = curx - originx
+                            boay = cury - originy
+                            probePt_dict = {'x':boax,'y':boay}                        
+                            bo.register(params=probePt_dict, target=fd_nonjamming)
+
+                            boa_ite_ls.append(ite)
+                            boa_x_ls.append(round(boax,4))
+                            boa_y_ls.append(round(boay,4))
+                            boa_return_ls.append(fd_nonjamming)
+                        
+                        df_ls.append(round(f_val,4))
+                        dr_ls.append(round(f_dir,4))
+                        rela_x_ls.append(round(curx - originx,4))
+                        rela_y_ls.append(round(cury - originy,4))                    
+                        
+                        ite = ite+1
+            
+            ## if get contact, tell to the BOA
+            if flargeFlag == True:
+                curx = ur_control.group.get_current_pose().pose.position.x
+                cury = ur_control.group.get_current_pose().pose.position.y
+                ## return values into BOA
+                boax = curx - originx
+                boay = cury - originy
+                probePt_dict = {'x':boax,'y':boay}
+                # tell BOA the observed value
+                bo.register(params=probePt_dict, target=f_val)
+
+                df_ls.append(round(f_val,4))
+                dr_ls.append(round(f_dir,4))
+                rela_x_ls.append(round(curx - originx,4))
+                rela_y_ls.append(round(cury - originy,4))
+                boa_ite_ls.append(ite)
+                boa_x_ls.append(round(boax,4))
+                boa_y_ls.append(round(boay,4))
+                boa_return_ls.append(round(f_val,4))
+            
             ## log (external)
             if isSaveForce ==  1:
                 now_date = time.strftime("%m%d%H%M%S", time.localtime())
