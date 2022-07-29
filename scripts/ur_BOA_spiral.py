@@ -195,6 +195,10 @@ if __name__ == '__main__':
         maxForward_ls = []  
         rela_x_ls = [] # relative x 
         rela_y_ls = []
+        boa_ite_ls = []
+        boa_x_ls = []
+        boa_y_ls = []
+        boa_return_ls = []
 
         vect2goalx = x_e_wldf - x_s_wldf
         vect2goaly = y_e_wldf - y_s_wldf
@@ -293,21 +297,30 @@ if __name__ == '__main__':
                         print('----center dist {:.3f}----'.format(cent_dist))
                         pre_forward_dist = forward_dist
                         # tell BOA the observed value
-                        probePt_dict = {'x':curx - originx,'y':cury - originy}                        
+                        boax = curx - originx
+                        boay = cury - originy
+                        probePt_dict = {'x':boax,'y':boay}                        
                         bo.register(params=probePt_dict, target=fd_nonjamming)
+
+                        boa_ite_ls.append(ite)
+                        boa_x_ls.append(round(boax,4))
+                        boa_y_ls.append(round(boay,4))
+                        boa_return_ls.append(fd_nonjamming)
                     
                     df_ls.append(round(f_val,4))
                     dr_ls.append(round(f_dir,4))
                     rela_x_ls.append(round(curx - originx,4))
-                    rela_y_ls.append(round(cury - originy,4))
-
+                    rela_y_ls.append(round(cury - originy,4))                    
+                    
                     ite = ite+1
             ## if get contact, tell to the BOA
             if flargeFlag == True:
                 curx = ur_control.group.get_current_pose().pose.position.x
                 cury = ur_control.group.get_current_pose().pose.position.y
                 ## return values into BOA
-                probePt_dict = {'x':curx - originx,'y':cury - originy}
+                boax = curx - originx
+                boay = cury - originy
+                probePt_dict = {'x':boax,'y':boay}
                 # tell BOA the observed value
                 bo.register(params=probePt_dict, target=f_val)
 
@@ -315,12 +328,16 @@ if __name__ == '__main__':
                 dr_ls.append(round(f_dir,4))
                 rela_x_ls.append(round(curx - originx,4))
                 rela_y_ls.append(round(cury - originy,4))
+                boa_ite_ls.append(ite)
+                boa_x_ls.append(round(boax,4))
+                boa_y_ls.append(round(boay,4))
+                boa_return_ls.append(round(f_val,4))
 
             ## log (external)
             if isSaveForce ==  1:
-                allData = zip(rela_x_ls,rela_y_ls,df_ls,dr_ls)
-                ## log: x_rela, y_rela, force val, force dir
                 now_date = time.strftime("%m%d%H%M%S", time.localtime())
+                allData = zip(rela_x_ls,rela_y_ls,df_ls,dr_ls)
+                ## log: x_rela, y_rela, force val, force dir                
                 with open('{}/{}_slide{}_Fdvaldir.csv'.format(dataPath,now_date,j),'a',newline="\n")as f:
                     f_csv = csv.writer(f) # <<<<<<
                     for row in allData:
@@ -334,6 +351,17 @@ if __name__ == '__main__':
                         f_csv.writerow(row)
                 f.close()
 
+                ## log: 4 info. on BOA                
+                allData = zip(boa_ite_ls,boa_x_ls,boa_y_ls,boa_return_ls)
+                with open('{}/{}_slide{}_BOA.csv'.format(dataPath,now_date,j),'a',newline="\n")as f:
+                    f_csv = csv.writer(f) # <<<<<<
+                    ## record the start and goal (relative)
+                    tempRow = [x_s_wldf-originx, y_s_wldf-originy, x_e_wldf-originx, y_e_wldf-originy]
+                    f_csv.writerow(tempRow)
+                    for row in allData:
+                        f_csv.writerow(row)
+                f.close()
+
             ## if no jamming, plot it， and ds_ls not empty
             # if isPlotJD and not flargeFlag and ds_ls:
             #         ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
@@ -342,7 +370,7 @@ if __name__ == '__main__':
 
             ## plot BOA results
             ## Def: plot_2d2(slide_id, bo, util, kernel,x,y,XY, f_max, fig_path, name=None)
-            plot_2d2(j, bo, util, kernel, xrange,yrange,XY, CUR_SAFE_FORCE, figPath+'/slide{}_'.format(j), "{:03}".format(len(bo._space.params)))
+            plot_2d2(j, bo, util, kernel, xrange,yrange,XY, CUR_SAFE_FORCE, figPath+'/{}_slide{}_'.format(now_date,j), "{:03}".format(len(bo._space.params)))
             
         else:
             rospy.loginfo('Out of the Worksapce:\n x {}, y {}'.format(round(x_e_wldf,3),round(y_e_wldf,3)))
