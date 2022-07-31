@@ -14,6 +14,9 @@ class SfatyPara:
         
         # safety force threshold
         self.FORCE_MAX  = 15.   # 15 N
+        # safety penetration force
+        self.PENE_FORCE_MAX  = 15.   # 15 N
+
         # lift/penetration limits
         self.LIFT_Z_MIN = +0.08 # +8 cm
         self.LIFT_Z_MAX = +0.20 # +20 cm
