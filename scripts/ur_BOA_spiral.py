@@ -466,8 +466,8 @@ if __name__ == '__main__':
                 step_len = 0.01 # 1cm
                 flag3 = True
                 while round(jj*step_len-norm_vect2cont,6) <= 0:                
-                    new_startPtX = (jj*step_len/norm_vect2goal)*vect2goalx
-                    new_startPtY = (jj*step_len/norm_vect2goal)*vect2goaly
+                    new_startPtX = x_ss_wldf + (jj*step_len/norm_vect2goal)*vect2goalx
+                    new_startPtY = y_ss_wldf + (jj*step_len/norm_vect2goal)*vect2goaly
                     flag3 = goPeneGivenPose(ur_control,[new_startPtX,new_startPtY,depthz],normalVelScale)
                     ## ---- if can not penetrate ----
                     if flag3 == False:
