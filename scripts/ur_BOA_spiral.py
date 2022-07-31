@@ -23,7 +23,7 @@ from std_msgs.msg import String
 
 from tf import transformations as tfs
 from functions.scene_helper import zero_ft_sensor,ft_listener
-from functions.ur_move import MoveGroupPythonInteface,go2Origin,go2GivenPose,go2GivenPose2
+from functions.ur_move import MoveGroupPythonInteface,goPeneGivenPose,go2GivenPose,go2GivenPose2
 from robotiq_ft_sensor.msg import ft_sensor
 from control_msgs.msg import FollowJointTrajectoryActionResult as rlst
 import moveit_commander
@@ -168,8 +168,8 @@ if __name__ == '__main__':
     traj_radius = 0.01 # xx cm
 
     ## start the loop
-    for j in range(1,21): # <<<<<<
-        print("--------- {}-th slide ---------".format(j))
+    for slide_id in range(1,21): # <<<<<<
+        print("--------- {}-th slide ---------".format(slide_id))
         ## record the start x,y (i.e., current pos) in UR frame
         wpose = ur_control.group.get_current_pose().pose
         x_s_wldf = wpose.position.x
@@ -319,6 +319,7 @@ if __name__ == '__main__':
                 rela_y_ls.append(round(cury - originy,4))                    
                 
                 ite = ite+1
+
         ## if get contact, tell to the BOA
         if flargeFlag == True:
             curx = ur_control.group.get_current_pose().pose.position.x
@@ -340,124 +341,260 @@ if __name__ == '__main__':
             boa_return_ls.append(round(f_val,4))
 
         ## if get contact then start from the goal to the start pos.
-        if flargeFlag == True:                
-            ## move to the previous goal;
-            pose = [0 for hh in range(0,3)]
-            pose[0] = x_e_wldf
-            pose[1] = y_e_wldf
-            pose[2] = depthz
-            # go2GivenPose(ur_control,pose)
-            go2GivenPose2(ur_control,pose,normalVelScale)
-            
-            ## flip the start and goal in UR frame
+        if flargeFlag == True:
+            ## record the contact pos.(absolute)
+            contactPosX = curx
+            contactPosY = cury
+
+            ## flip the start pt and goal in UR frame
             x_ss_wldf = x_e_wldf
             y_ss_wldf = y_e_wldf
-            # goal in the UR base frame
             x_ee_wldf = x_s_wldf
-            y_ee_wldf = y_s_wldf
-
+            y_ee_wldf = y_s_wldf  
             vect2goalx = x_ee_wldf - x_ss_wldf
             vect2goaly = y_ee_wldf - y_ss_wldf
-            norm_vect2goal = np.sqrt(vect2goalx**2+vect2goaly**2)            
+            norm_vect2goal = np.sqrt(vect2goalx**2+vect2goaly**2)
+            norm_vect2cont = np.sqrt((contactPosX-x_ss_wldf)**2+(contactPosY-y_ss_wldf)**2)
+            ## if the remaining path shorter than 1cm, go back to init pos
+            if round(norm_vect2cont - 0.01,3) <= 0:
+                ## go to & penetrate into the initial pos of exp.
+                go2GivenPose(ur_control,[originx + 0.1,originy,depthz])
+                rospy.sleep(0.5)
+                continue
             
-            ## sprial traj. to the previous start position
-            _,_,waypts = urCentOLine_sim(ur_control,traj_radius,0.01,[x_ee_wldf,y_ee_wldf])
-            # _,_,Ocent,waypts = urCent2Circle(ur_control,traj_radius,1,False)
-            (plan, fraction) = ur_control.go_cartesian_path(waypts,execute=False)
-            ## move along the generated path
-            listener.clear_finish_flag()
-            ur_control.set_speed_slider(normalVelScale)
-            zero_ft_sensor()
-            ur_control.group.execute(plan, wait=False)
+            ## try to move to the start pt with penetration
+            # pose = [0 for hh in range(0,3)]
+            # pose[0] = x_ss_wldf
+            # pose[1] = y_ss_wldf
+            # pose[2] = depthz
+            # go2GivenPose(ur_control,pose)
+            
+            # go2GivenPose2(ur_control,pose,normalVelScale)
+            flag1 = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
+            
+            if flag1 == True:
+                ## can penetrate into the start pt (i.e., previous goal)
 
-            ## --- [force monitor] ---
-            rospy.loginfo('clear_finish_flag')
-            flargeFlag = False
-            pre_forward_dist = 0.0 
-            while not listener.read_finish_flag():                    
-                ## measure the force val/dir
-                f_val = listener.get_force_val()
-                f_dir = listener.get_force_dir()
-                if f_val is not None:
-                    ## most conservative way (most safe)
-                    if np.round(f_val,6) > CUR_SAFE_FORCE:
-                        rospy.loginfo('==== Large Force Warning ==== \n')
-                        ur_control.group.stop()
-                        flargeFlag = True
-                        break                    
-                    
-                    ## log list
-                    cur_pos = ur_control.group.get_current_pose().pose
-                    curx = cur_pos.position.x
-                    cury = cur_pos.position.y
-                    vect2curx = curx - x_ss_wldf
-                    vect2cury = cury - y_ss_wldf
-                    norm_vect2cur = np.sqrt(vect2curx**2+vect2cury**2)
-                    temp1 = vect2goalx*vect2curx + vect2goaly*vect2cury
-                    temp2 = norm_vect2goal*norm_vect2cur
-                    temp3 = round(abs(temp1 - temp2),6)
-                    forward_dist = round(norm_vect2cur,3) # lie in [startpos, goal] 
-                    # print('temp3: {:.3f}'.format(temp3))
-                    # print('forward_dist: {:.3f}'.format(forward_dist))                                       
-                    if temp3 <=  1e-07 and forward_dist > 0.001 and forward_dist - pre_forward_dist >0:
-                        # print(temp3)
-                        # dist = round(norm_vect2cur-traj_radius,4) # x.x mm                        
-                        cent_dist = round(forward_dist - traj_radius,3)
-                        ds_ls.append(cent_dist)
-                        ds_ite_ls.append(ite)
-                        print('----center dist {:.3f}----'.format(cent_dist))
-                        pre_forward_dist = forward_dist
-                        # tell BOA the observed value
-                        boax = curx - originx
-                        boay = cury - originy
-                        probePt_dict = {'x':boax,'y':boay}                        
-                        bo.register(params=probePt_dict, target=fd_nonjamming)
+                # ## flip the start and goal in UR frame
+                # x_ss_wldf = x_e_wldf
+                # y_ss_wldf = y_e_wldf
+                # # goal in the UR base frame
+                # x_ee_wldf = x_s_wldf
+                # y_ee_wldf = y_s_wldf
 
-                        boa_ite_ls.append(ite)
-                        boa_x_ls.append(round(boax,4))
-                        boa_y_ls.append(round(boay,4))
-                        boa_return_ls.append(fd_nonjamming)
-                    
-                    df_ls.append(round(f_val,4))
-                    dr_ls.append(round(f_dir,4))
-                    rela_x_ls.append(round(curx - originx,4))
-                    rela_y_ls.append(round(cury - originy,4))                    
-                    
-                    ite = ite+1
-        
+                ## sprial traj. to the previous start position
+                _,_,waypts = urCentOLine_sim(ur_control,traj_radius,0.01,[x_ee_wldf,y_ee_wldf])
+                # _,_,Ocent,waypts = urCent2Circle(ur_control,traj_radius,1,False)
+                (plan, fraction) = ur_control.go_cartesian_path(waypts,execute=False)
+                ## move along the generated path
+                listener.clear_finish_flag()
+                ur_control.set_speed_slider(normalVelScale)
+                zero_ft_sensor()
+                ur_control.group.execute(plan, wait=False)
+
+                ## --- [force monitor] ---
+                rospy.loginfo('clear_finish_flag')
+                pre_forward_dist = 0.0 
+                while not listener.read_finish_flag():                    
+                    ## measure the force val/dir
+                    f_val = listener.get_force_val()
+                    f_dir = listener.get_force_dir()
+                    if f_val is not None:
+                        ## most conservative way (most safe)
+                        if np.round(f_val,6) > CUR_SAFE_FORCE:
+                            rospy.loginfo('==== Large Force Warning ==== \n')
+                            ur_control.group.stop()  
+                            # contactFlag = True
+                            ## must get contact again                            
+                            ## get contact & tell to the BOA
+                            curx = ur_control.group.get_current_pose().pose.position.x
+                            cury = ur_control.group.get_current_pose().pose.position.y
+                            probePt_dict = {'x':curx - originx,'y':cury - originy}
+                            bo.register(params=probePt_dict, target=f_val)
+                            ## lift up and move back to & penetrate into the start pt (i.e., previous goal)
+                            flag2 = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
+                            if flag2 == False: raise Exception('Err: something unexpected')
+                            break               
+                        
+                        ## log list
+                        cur_pos = ur_control.group.get_current_pose().pose
+                        curx = cur_pos.position.x
+                        cury = cur_pos.position.y
+                        vect2curx = curx - x_ss_wldf
+                        vect2cury = cury - y_ss_wldf
+                        norm_vect2cur = np.sqrt(vect2curx**2+vect2cury**2)
+                        temp1 = vect2goalx*vect2curx + vect2goaly*vect2cury
+                        temp2 = norm_vect2goal*norm_vect2cur
+                        temp3 = round(abs(temp1 - temp2),6)
+                        forward_dist = round(norm_vect2cur,3) # lie in [startpos, goal] 
+                        # print('temp3: {:.3f}'.format(temp3))
+                        # print('forward_dist: {:.3f}'.format(forward_dist))                                       
+                        if temp3 <=  1e-07 and forward_dist > 0.001 and forward_dist - pre_forward_dist >0:
+                            # print(temp3)
+                            # dist = round(norm_vect2cur-traj_radius,4) # x.x mm                        
+                            cent_dist = round(forward_dist - traj_radius,3)
+                            ds_ls.append(cent_dist)
+                            ds_ite_ls.append(ite)
+                            print('----center dist {:.3f}----'.format(cent_dist))
+                            pre_forward_dist = forward_dist
+                            # tell BOA the observed value
+                            boax = curx - originx
+                            boay = cury - originy
+                            probePt_dict = {'x':boax,'y':boay}                        
+                            bo.register(params=probePt_dict, target=fd_nonjamming)
+
+                            boa_ite_ls.append(ite)
+                            boa_x_ls.append(round(boax,4))
+                            boa_y_ls.append(round(boay,4))
+                            boa_return_ls.append(fd_nonjamming)
+                        
+                        df_ls.append(round(f_val,4))
+                        dr_ls.append(round(f_dir,4))
+                        rela_x_ls.append(round(curx - originx,4))
+                        rela_y_ls.append(round(cury - originy,4))                    
+                        
+                        ite = ite+1
+            else:
+                ## cannot penetrate into the granular media at the start point
+                ### tell to the BOA that the start pt has high force (e.g., 7N)
+                boax = x_ss_wldf - originx
+                boay = y_ss_wldf - originy
+                probePt_dict = {'x':boax,'y':boay}
+                bo.register(params=probePt_dict, target=7)
+                ### penetrate step by step until to the previous contact pos.
+                jj = 1
+                step_len = 0.01 # 1cm
+                flag3 = True
+                while round(jj*step_len-norm_vect2cont,6) <= 0:                
+                    new_startPtX = (jj*step_len/norm_vect2goal)*vect2goalx
+                    new_startPtY = (jj*step_len/norm_vect2goal)*vect2goaly
+                    flag3 = goPeneGivenPose(ur_control,[new_startPtX,new_startPtY,depthz],normalVelScale)
+                    ## ---- if can not penetrate ----
+                    if flag3 == False:
+                        ### tell to the BOA that the NEW start pt has high force (e.g., 7N)
+                        boax = new_startPtX - originx
+                        boay = new_startPtY - originy
+                        probePt_dict = {'x':boax,'y':boay}
+                        bo.register(params=probePt_dict, target=7)
+                        jj = jj+1
+                        continue
+                    ## ---- if can penetrate ----
+                    ### sprial traj. to the previous start position
+                    _,_,waypts = urCentOLine_sim(ur_control,traj_radius,0.01,[x_ee_wldf,y_ee_wldf])
+                    # _,_,Ocent,waypts = urCent2Circle(ur_control,traj_radius,1,False)
+                    (plan, fraction) = ur_control.go_cartesian_path(waypts,execute=False)
+                    ### move along the generated path
+                    listener.clear_finish_flag()
+                    ur_control.set_speed_slider(normalVelScale)
+                    zero_ft_sensor()
+                    ur_control.group.execute(plan, wait=False)
+
+                    ### --- [force monitor] ---
+                    rospy.loginfo('clear_finish_flag')
+                    contactFlag = False
+                    pre_forward_dist = 0.0 
+                    while not listener.read_finish_flag():                    
+                        ## measure the force val/dir
+                        f_val = listener.get_force_val()
+                        f_dir = listener.get_force_dir()
+                        if f_val is not None:
+                            ### most conservative way (most safe)
+                            if np.round(f_val,6) > CUR_SAFE_FORCE:
+                                ## must get contact again
+                                rospy.loginfo('==== Large Force Warning ==== \n')
+                                ur_control.group.stop()
+                                contactFlag = True                                                                
+                                ## get contact & tell to the BOA
+                                curx = ur_control.group.get_current_pose().pose.position.x
+                                cury = ur_control.group.get_current_pose().pose.position.y
+                                probePt_dict = {'x':curx - originx,'y':cury - originy}
+                                bo.register(params=probePt_dict, target=f_val)
+                                ## lift up and move to & penetrate into the start pt
+                                flag = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
+                                if flag == False: raise Exception('Err: something unexpected')
+                                break                    
+                            
+                            ### log list
+                            cur_pos = ur_control.group.get_current_pose().pose
+                            curx = cur_pos.position.x
+                            cury = cur_pos.position.y
+                            vect2curx = curx - x_ss_wldf
+                            vect2cury = cury - y_ss_wldf
+                            norm_vect2cur = np.sqrt(vect2curx**2+vect2cury**2)
+                            temp1 = vect2goalx*vect2curx + vect2goaly*vect2cury
+                            temp2 = norm_vect2goal*norm_vect2cur
+                            temp3 = round(abs(temp1 - temp2),6)
+                            forward_dist = round(norm_vect2cur,3) # lie in [startpos, goal] 
+                            # print('temp3: {:.3f}'.format(temp3))
+                            # print('forward_dist: {:.3f}'.format(forward_dist))                                       
+                            if temp3 <=  1e-07 and forward_dist > 0.001 and forward_dist - pre_forward_dist >0:
+                                # print(temp3)
+                                # dist = round(norm_vect2cur-traj_radius,4) # x.x mm                        
+                                cent_dist = round(forward_dist - traj_radius,3)
+                                ds_ls.append(cent_dist)
+                                ds_ite_ls.append(ite)
+                                print('----center dist {:.3f}----'.format(cent_dist))
+                                pre_forward_dist = forward_dist
+                                ### tell BOA the observed value
+                                boax = curx - originx
+                                boay = cury - originy
+                                probePt_dict = {'x':boax,'y':boay}                        
+                                bo.register(params=probePt_dict, target=fd_nonjamming)
+
+                                boa_ite_ls.append(ite)
+                                boa_x_ls.append(round(boax,4))
+                                boa_y_ls.append(round(boay,4))
+                                boa_return_ls.append(fd_nonjamming)
+                            
+                            df_ls.append(round(f_val,4))
+                            dr_ls.append(round(f_dir,4))
+                            rela_x_ls.append(round(curx - originx,4))
+                            rela_y_ls.append(round(cury - originy,4))                    
+                            
+                            ite = ite+1
+                    if contactFlag == True:
+                        break
+                    else:
+                        ## must can get contact
+                        raise Exception('Err: something unexpected')
+                if flag3 == False:
+                    ## go to & penetrate into the initial pos of exp.
+                    go2GivenPose(ur_control,[originx + 0.1,originy,depthz])
+                    rospy.sleep(0.5)
+
         ## if get contact, tell to the BOA
-        if flargeFlag == True:
-            curx = ur_control.group.get_current_pose().pose.position.x
-            cury = ur_control.group.get_current_pose().pose.position.y
-            ## return values into BOA
-            boax = curx - originx
-            boay = cury - originy
-            probePt_dict = {'x':boax,'y':boay}
-            # tell BOA the observed value
-            bo.register(params=probePt_dict, target=f_val)
+        # if flargeFlag == True:
+        #     curx = ur_control.group.get_current_pose().pose.position.x
+        #     cury = ur_control.group.get_current_pose().pose.position.y
+        #     ## return values into BOA
+        #     boax = curx - originx
+        #     boay = cury - originy
+        #     probePt_dict = {'x':boax,'y':boay}
+        #     # tell BOA the observed value
+        #     bo.register(params=probePt_dict, target=f_val)
 
-            df_ls.append(round(f_val,4))
-            dr_ls.append(round(f_dir,4))
-            rela_x_ls.append(round(curx - originx,4))
-            rela_y_ls.append(round(cury - originy,4))
-            boa_ite_ls.append(ite)
-            boa_x_ls.append(round(boax,4))
-            boa_y_ls.append(round(boay,4))
-            boa_return_ls.append(round(f_val,4))
+        #     df_ls.append(round(f_val,4))
+        #     dr_ls.append(round(f_dir,4))
+        #     rela_x_ls.append(round(curx - originx,4))
+        #     rela_y_ls.append(round(cury - originy,4))
+        #     boa_ite_ls.append(ite)
+        #     boa_x_ls.append(round(boax,4))
+        #     boa_y_ls.append(round(boay,4))
+        #     boa_return_ls.append(round(f_val,4))
         
         ## log (external)
         if isSaveForce ==  1:
             now_date = time.strftime("%m%d%H%M%S", time.localtime())
             allData = zip(rela_x_ls,rela_y_ls,df_ls,dr_ls)
             ## log: x_rela, y_rela, force val, force dir                
-            with open('{}/{}_slide{}_Fdvaldir.csv'.format(dataPath,now_date,j),'a',newline="\n")as f:
+            with open('{}/{}_slide{}_Fdvaldir.csv'.format(dataPath,now_date,slide_id),'a',newline="\n")as f:
                 f_csv = csv.writer(f) # <<<<<<
                 for row in allData:
                     f_csv.writerow(row)
             f.close()
             ## log: ite - center distance
             allData = zip(ds_ite_ls,ds_ls)
-            with open('{}/{}_slide{}_Distance.csv'.format(dataPath,now_date,j),'a',newline="\n")as f:
+            with open('{}/{}_slide{}_Distance.csv'.format(dataPath,now_date,slide_id),'a',newline="\n")as f:
                 f_csv = csv.writer(f) # <<<<<<
                 for row in allData:
                     f_csv.writerow(row)
@@ -465,7 +602,7 @@ if __name__ == '__main__':
 
             ## log: 4 info. on BOA                
             allData = zip(boa_ite_ls,boa_x_ls,boa_y_ls,boa_return_ls)
-            with open('{}/{}_slide{}_BOA.csv'.format(dataPath,now_date,j),'a',newline="\n")as f:
+            with open('{}/{}_slide{}_BOA.csv'.format(dataPath,now_date,slide_id),'a',newline="\n")as f:
                 f_csv = csv.writer(f) # <<<<<<
                 ## record the start and goal (relative)
                 tempRow = [x_s_wldf-originx, y_s_wldf-originy, x_e_wldf-originx, y_e_wldf-originy]
@@ -477,17 +614,14 @@ if __name__ == '__main__':
         ## if no jamming, plot it， and ds_ls not empty
         # if isPlotJD and not flargeFlag and ds_ls:
         #         ds_adv = round(ds_obj-ds_ls[-1], 3) # >0 in theory
-        #         title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, NoJD'.format(j,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls))
-        #         JDlib.plotJDRes(ds_obj,title_str,figPath,j)
+        #         title_str = 'Exp{}: ds [{},{}], Dep {}, Vel {}, Ite {}, NoJD'.format(slide_id,ds_min,np.inf,PENE_DEPTH,normalVelScale,len(df_ls))
+        #         JDlib.plotJDRes(ds_obj,title_str,figPath,slide_id)
 
         ## plot BOA results
         ## Def: plot_2d2(slide_id, bo, util, kernel,x,y,XY, f_max, fig_path, name=None)
-        plot_2d2(j, bo, util, kernel, xrange,yrange,XY, CUR_SAFE_FORCE, figPath+'/{}_slide{}_'.format(now_date,j), "{:03}".format(len(bo._space.params)))
+        plot_2d2(slide_id, bo, util, kernel, xrange,yrange,XY, CUR_SAFE_FORCE, figPath+'/{}_slide{}_'.format(now_date,slide_id), "{:03}".format(len(bo._space.params)))
         
-        
-        # if flargeFlag == 1:
-        #     break
-        rospy.loginfo('{}-th slide finished'.format(j))
+        rospy.loginfo('{}-th slide finished'.format(slide_id))
 
     # lift up
     waypoints = []
