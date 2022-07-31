@@ -23,6 +23,7 @@ import ur_msgs.srv
 
 from functions import helper
 from functions.saftyCheck import SfatyPara
+from functions.scene_helper import zero_ft_sensor,ft_listener
 
 DEF_TOPIC_HW = 'ur_hardware_interface'
 dashboard_srv_prefix = DEF_TOPIC_HW + '/dashboard/'
@@ -713,6 +714,67 @@ def go2GivenPose2(ur_control,pose,pre_vel):
         ## velocity setting
         ur_control.set_speed_slider(pre_vel)
         return False
+
+## move to the given pos. in the leap-frog form
+## with given previous velocity
+## with safe penetration force monitor
+def goPeneGivenPose(ur_control,pose,pre_vel):
+    ## safety check
+    if not sp.checkCoorLimit3d(pose):
+        ## velocity setting
+        # ur_control.set_speed_slider(pre_vel)
+        raise Exception('Error: out of workspace')
+    
+    listener = ft_listener()
+    sp = SfatyPara()    
+    ## lift up to the safe height
+    waypoints = []
+    wpose = ur_control.group.get_current_pose().pose
+    wpose.position.z = sp.SAFEZ
+    waypoints.append(copy.deepcopy(wpose)) 
+    
+    ## go the given position    
+    wpose.position.x = pose[0]
+    wpose.position.y = pose[1]
+    waypoints.append(copy.deepcopy(wpose))
+
+    ## penetration
+    wpose.position.z = pose[2]    
+    quater_init = tfs.quaternion_from_euler(0, np.pi, np.pi/2,'szyz')
+    wpose.orientation.x = quater_init[0]
+    wpose.orientation.y = quater_init[1]
+    wpose.orientation.z = quater_init[2]
+    wpose.orientation.w = quater_init[3]
+    waypoints.append(copy.deepcopy(wpose))
+
+    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+    listener.clear_finish_flag()
+    ur_control.set_speed_slider(0.5)
+    zero_ft_sensor()
+    ur_control.group.execute(plan, wait=False)
+
+    ## ---- safe penetration force monitor ----
+    ## --- [force monitor] ---
+    print('clear_finish_flag')
+    flargeFlag = False
+    while not listener.read_finish_flag():                    
+        ## measure the force val/dir
+        f_val = listener.get_pene_force()
+        if f_val is not None:
+            ## most conservative way (most safe)
+            if np.round(f_val,6) > sp.PENE_FORCE_MAX:
+                print('==== Can Not Penetrate ==== \n')
+                ur_control.group.stop()
+                flargeFlag = True
+                break      
+
+    rospy.sleep(0.5)
+    ## velocity setting
+    ur_control.set_speed_slider(pre_vel)
+    if flargeFlag == True:
+        return False # move to the given pos failed
+    else: return True
+
 
 if __name__ == '__main__':
     rospy.init_node("test_move")
