@@ -149,6 +149,7 @@ class ft_listener():
         self.sensor_data = None
         self.force_val = None
         self.force_dir = None
+        self.pene_force = None
         self.plan_finished =False
 
     def detect_callbak(self,msg):
@@ -165,7 +166,10 @@ class ft_listener():
 
             # calculate the force dir. (deg)
             dir_rad = math.atan2(msg.Fy, msg.Fx)
-            self.force_dir = math.degrees(dir_rad)     
+            self.force_dir = math.degrees(dir_rad)
+
+            # check the penetration force 
+            self.pene_force =  msg.Fz   
     
     def callback(self,msg):
         # rospy.loginfo('finish callback')
@@ -194,6 +198,10 @@ class ft_listener():
     def get_force_dir(self):
         with self.lock_read:
             return self.force_dir
+
+    def get_pene_force(self):
+        with self.lock_read:
+            return self.pene_force
 
 ## --- [force monitor] ---
 # def force_monitor():
