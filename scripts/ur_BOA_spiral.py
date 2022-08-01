@@ -343,6 +343,8 @@ if __name__ == '__main__':
             boa_y_ls.append(round(boay,4))
             boa_return_ls.append(round(f_val,4))
 
+            ite = ite+1
+
         ## if get contact then start from the goal to the start pos.
         if flargeFlag == True:
             ## record the contact pos.(absolute)
@@ -409,10 +411,10 @@ if __name__ == '__main__':
                             ciVectY = contactPosY-contactPosY2
                             len_contact_interval = np.sqrt((ciVectX)**2+(ciVectY)**2)
                             ## get contact & tell to the BOA                            
-                            probePt_dict = {'x':contactPosX2 - originx,'y':contactPosY2 - originy}
-                            bo.register(params=probePt_dict, target=f_val)
+                            # probePt_dict = {'x':contactPosX2 - originx,'y':contactPosY2 - originy}
+                            # bo.register(params=probePt_dict, target=f_val)
                             ## tell BOA within the collision interval
-                            jjj = 1
+                            jjj = 0
                             step_len = 0.01 # 1cm
                             while round(jjj*step_len-len_contact_interval,6) <= 0: 
                                 ## pts within the contact interval
@@ -421,10 +423,14 @@ if __name__ == '__main__':
                                 probePt_dict = {'x':PtInCIX - originx,'y':PtInCIY - originy}
                                 bo.register(params=probePt_dict, target=f_val)
                                 jjj = jjj+1
+                                ## log record about BOA info.
+                                boa_ite_ls.append(ite)
+                                boa_x_ls.append(round(PtInCIX - originx,4))
+                                boa_y_ls.append(round(PtInCIY - originy,4))
+                                boa_return_ls.append(round(f_val,4))
                             ## lift up and move back to & penetrate into the start pt (i.e., previous goal)
                             flag2 = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
                             if flag2 == False: raise Exception('Err: something unexpected')
-                            ### TODO: log record about BOA info.
                             break               
                         
                         ## log list
@@ -531,10 +537,10 @@ if __name__ == '__main__':
                                 ciVectY = contactPosY-contactPosY2
                                 len_contact_interval = np.sqrt((ciVectX)**2+(ciVectY)**2)
                                 ## get contact & tell to the BOA                            
-                                probePt_dict = {'x':contactPosX2 - originx,'y':contactPosY2 - originy}
-                                bo.register(params=probePt_dict, target=f_val)
+                                # probePt_dict = {'x':contactPosX2 - originx,'y':contactPosY2 - originy}
+                                # bo.register(params=probePt_dict, target=f_val)
                                 ## tell BOA within the collision interval
-                                jjj = 1
+                                jjj = 0
                                 step_len = 0.01 # 1cm
                                 while round(jjj*step_len-len_contact_interval,6) <= 0: 
                                     ## pts within the contact interval
@@ -543,6 +549,11 @@ if __name__ == '__main__':
                                     probePt_dict = {'x':PtInCIX - originx,'y':PtInCIY - originy}
                                     bo.register(params=probePt_dict, target=f_val)
                                     jjj = jjj+1
+                                    ## log record about BOA info.
+                                    boa_ite_ls.append(ite)
+                                    boa_x_ls.append(round(PtInCIX - originx,4))
+                                    boa_y_ls.append(round(PtInCIY - originy,4))
+                                    boa_return_ls.append(round(f_val,4))
                                 ## lift up and move to & penetrate into the start pt
                                 flag4 = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
                                 if flag4 == False: raise Exception('Err: something unexpected')
