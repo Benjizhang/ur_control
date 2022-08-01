@@ -43,14 +43,15 @@ if __name__ == '__main__':
     moveit_commander.roscpp_initialize(sys.argv)
 
     ## input the exp mode
-    input = int(input("Exp Mode: trial(0), normal(1) ") or "0")
+    input = int(input("Exp Mode: trial[0], normal(1) ") or "0")
     if input == 0:
         exp_mode = 'trial'
     elif input == 1:
         exp_mode = 'normal'
     else:
         raise Exception('Error: Invalid Exp Mode!')
-    
+    print('**** Exp Mode: '+exp_mode+' ****')
+    rospy.sleep(0.5)
     ## set the initial pos (i.e., origin of task frame)
     sp = SfatyPara()
     originx = sp.originX
