@@ -398,18 +398,32 @@ if __name__ == '__main__':
                         ## most conservative way (most safe)
                         if np.round(f_val,6) > CUR_SAFE_FORCE:
                             rospy.loginfo('==== Large Force Warning ==== \n')
-                            ur_control.group.stop()  
-                            # contactFlag = True
-                            ## must get contact again    
-                            # TODO: tell BOA within the collision interval                        
-                            ## get contact & tell to the BOA
-                            curx = ur_control.group.get_current_pose().pose.position.x
-                            cury = ur_control.group.get_current_pose().pose.position.y
-                            probePt_dict = {'x':curx - originx,'y':cury - originy}
+                            ur_control.group.stop()
+                            ## must get contact again
+                            ## contact position
+                            contactPosX2 = ur_control.group.get_current_pose().pose.position.x
+                            contactPosY2 = ur_control.group.get_current_pose().pose.position.y 
+                            ## contact interval vector
+                            ciVectX = contactPosX-contactPosX2
+                            ciVectY = contactPosY-contactPosY2
+                            len_contact_interval = np.sqrt((ciVectX)**2+(ciVectY)**2)
+                            ## get contact & tell to the BOA                            
+                            probePt_dict = {'x':contactPosX2 - originx,'y':contactPosY2 - originy}
                             bo.register(params=probePt_dict, target=f_val)
+                            ## tell BOA within the collision interval
+                            jjj = 1
+                            step_len = 0.01 # 1cm
+                            while round(jjj*step_len-len_contact_interval,6) <= 0: 
+                                ## pts within the contact interval
+                                PtInCIX = contactPosX2 + (jjj*step_len/len_contact_interval)*ciVectX
+                                PtInCIY = contactPosY2 + (jjj*step_len/len_contact_interval)*ciVectY
+                                probePt_dict = {'x':PtInCIX - originx,'y':PtInCIY - originy}
+                                bo.register(params=probePt_dict, target=f_val)
+                                jjj = jjj+1
                             ## lift up and move back to & penetrate into the start pt (i.e., previous goal)
                             flag2 = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
                             if flag2 == False: raise Exception('Err: something unexpected')
+                            ### TODO: log record about BOA info.
                             break               
                         
                         ## log list
@@ -498,14 +512,36 @@ if __name__ == '__main__':
                             ### most conservative way (most safe)
                             if np.round(f_val,6) > CUR_SAFE_FORCE:
                                 ## must get contact again
-                                rospy.loginfo('==== Large Force Warning ==== \n')
-                                ur_control.group.stop()
-                                contactFlag = True                                                                
-                                ## get contact & tell to the BOA
-                                curx = ur_control.group.get_current_pose().pose.position.x
-                                cury = ur_control.group.get_current_pose().pose.position.y
-                                probePt_dict = {'x':curx - originx,'y':cury - originy}
+                                ### ---- v1.0 -----
+                                # rospy.loginfo('==== Large Force Warning ==== \n')
+                                # ur_control.group.stop()
+                                # contactFlag = True                                                                
+                                # ## get contact & tell to the BOA
+                                # curx = ur_control.group.get_current_pose().pose.position.x
+                                # cury = ur_control.group.get_current_pose().pose.position.y
+                                # probePt_dict = {'x':curx - originx,'y':cury - originy}
+                                # bo.register(params=probePt_dict, target=f_val)
+                                ### ---- v2.0 ----
+                                ## contact position
+                                contactPosX2 = ur_control.group.get_current_pose().pose.position.x
+                                contactPosY2 = ur_control.group.get_current_pose().pose.position.y 
+                                ## contact interval vector
+                                ciVectX = contactPosX-contactPosX2
+                                ciVectY = contactPosY-contactPosY2
+                                len_contact_interval = np.sqrt((ciVectX)**2+(ciVectY)**2)
+                                ## get contact & tell to the BOA                            
+                                probePt_dict = {'x':contactPosX2 - originx,'y':contactPosY2 - originy}
                                 bo.register(params=probePt_dict, target=f_val)
+                                ## tell BOA within the collision interval
+                                jjj = 1
+                                step_len = 0.01 # 1cm
+                                while round(jjj*step_len-len_contact_interval,6) <= 0: 
+                                    ## pts within the contact interval
+                                    PtInCIX = contactPosX2 + (jjj*step_len/len_contact_interval)*ciVectX
+                                    PtInCIY = contactPosY2 + (jjj*step_len/len_contact_interval)*ciVectY
+                                    probePt_dict = {'x':PtInCIX - originx,'y':PtInCIY - originy}
+                                    bo.register(params=probePt_dict, target=f_val)
+                                    jjj = jjj+1
                                 ## lift up and move to & penetrate into the start pt
                                 flag4 = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
                                 if flag4 == False: raise Exception('Err: something unexpected')
