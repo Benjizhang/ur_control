@@ -63,7 +63,8 @@ if __name__ == '__main__':
     lenScaleBound ='fixed'
     # lenScaleBound = (1e-5, 1e5)
     # lenScaleBound = (0.01, 0.2)
-    kernel = Matern(length_scale=0.04, length_scale_bounds=lenScaleBound, nu=np.inf)
+    kernel = Matern(length_scale=0.1, length_scale_bounds=lenScaleBound, nu=np.inf)
+    # kernel = Matern(length_scale=0.04, length_scale_bounds=lenScaleBound, nu=np.inf)
     # kernel = Matern(length_scale=0.04, length_scale_bounds=lenScaleBound, nu=2.5)
     # kernel = Matern(length_scale=0.04, length_scale_bounds=lenScaleBound, nu=1.5)
     str_kernel = str(kernel)
