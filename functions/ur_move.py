@@ -719,14 +719,15 @@ def go2GivenPose2(ur_control,pose,pre_vel):
 ## with given previous velocity
 ## with safe penetration force monitor
 def goPeneGivenPose(ur_control,pose,pre_vel):
+    sp = SfatyPara()
+    listener = ft_listener()    
+
     ## safety check
     if not sp.checkCoorLimit3d(pose):
         ## velocity setting
         # ur_control.set_speed_slider(pre_vel)
-        raise Exception('Error: out of workspace')
+        raise Exception('Error: out of workspace')    
     
-    listener = ft_listener()
-    sp = SfatyPara()    
     ## lift up to the safe height
     waypoints = []
     wpose = ur_control.group.get_current_pose().pose
@@ -738,7 +739,13 @@ def goPeneGivenPose(ur_control,pose,pre_vel):
     wpose.position.y = pose[1]
     waypoints.append(copy.deepcopy(wpose))
 
+    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+    listener.clear_finish_flag()
+    ur_control.set_speed_slider(0.5)
+    ur_control.group.execute(plan, wait=True)
+
     ## penetration
+    waypoints = []
     wpose.position.z = pose[2]    
     quater_init = tfs.quaternion_from_euler(0, np.pi, np.pi/2,'szyz')
     wpose.orientation.x = quater_init[0]
@@ -749,7 +756,7 @@ def goPeneGivenPose(ur_control,pose,pre_vel):
 
     (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
     listener.clear_finish_flag()
-    ur_control.set_speed_slider(0.5)
+    ur_control.set_speed_slider(0.1)
     zero_ft_sensor()
     ur_control.group.execute(plan, wait=False)
 
@@ -757,12 +764,16 @@ def goPeneGivenPose(ur_control,pose,pre_vel):
     ## --- [force monitor] ---
     print('clear_finish_flag')
     flargeFlag = False
+    max_pene_f = 0.0
     while not listener.read_finish_flag():                    
         ## measure the force val/dir
-        f_val = listener.get_pene_force()
-        if f_val is not None:
+        f_val_abs = abs(listener.get_pene_force())
+        if f_val_abs is not None:
             ## most conservative way (most safe)
-            if np.round(f_val,6) > sp.PENE_FORCE_MAX:
+            max_pene_f = max(max_pene_f,round(f_val_abs,6))
+            print('Pene Force: {:.3f} N'.format(round(f_val_abs,6)))
+            print('Max Pene Force: {:.3f} N'.format(max_pene_f))
+            if round(f_val_abs,6) > sp.PENE_FORCE_MAX:
                 print('==== Can Not Penetrate ==== \n')
                 ur_control.group.stop()
                 flargeFlag = True

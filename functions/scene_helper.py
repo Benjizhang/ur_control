@@ -168,7 +168,7 @@ class ft_listener():
             dir_rad = math.atan2(msg.Fy, msg.Fx)
             self.force_dir = math.degrees(dir_rad)
 
-            # check the penetration force 
+            # check the penetration force (should be negative value)
             self.pene_force =  msg.Fz   
     
     def callback(self,msg):
