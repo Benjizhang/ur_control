@@ -568,7 +568,7 @@ if __name__ == '__main__':
                                     rela_y_ls.append(round(PtInCIY - originy,4))
                                 ## lift up and move to & penetrate into the start pt
                                 # flag4 = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
-                                flag4 = goPeneGivenPose2(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
+                                flag4 = goPeneGivenPose2(ur_control,[new_startPtX,new_startPtY,depthz],normalVelScale)
                                 if flag4 == False: raise Exception('Err: something unexpected')
                                 break                    
                             
