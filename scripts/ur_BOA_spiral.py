@@ -241,6 +241,7 @@ if __name__ == '__main__':
         vect2goalx = x_e_wldf - x_s_wldf
         vect2goaly = y_e_wldf - y_s_wldf
         norm_vect2goal = np.sqrt(vect2goalx**2+vect2goaly**2)
+        print('path length: {:.3f}'.format(norm_vect2goal))
         
         ## circle+line (a.k.a. spiral traj.)
         # _,_,waypts = urCentOLine(ur_control,0.01,0.01,[x_e_wldf,y_e_wldf])
@@ -301,6 +302,7 @@ if __name__ == '__main__':
                     ds_ls.append(cent_dist)
                     ds_ite_ls.append(ite)
                     print('----center dist {:.3f}----'.format(cent_dist))
+                    print('----remaining path: {:.3f} m'.format(norm_vect2goal - cent_dist))
                     pre_forward_dist = forward_dist
                     # tell BOA the observed value
                     boax = curx - originx
@@ -510,8 +512,8 @@ if __name__ == '__main__':
                                 probePt_dict = {'x':curx - originx,'y':cury - originy}
                                 bo.register(params=probePt_dict, target=f_val)
                                 ## lift up and move to & penetrate into the start pt
-                                flag = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
-                                if flag == False: raise Exception('Err: something unexpected')
+                                flag4 = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
+                                if flag4 == False: raise Exception('Err: something unexpected')
                                 break                    
                             
                             ### log list
