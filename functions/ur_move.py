@@ -786,8 +786,60 @@ def goPeneGivenPose(ur_control,pose,pre_vel):
         return False # move to the given pos failed
     else:
         print('**** Penetrate Successfully ****\n')
+        print('Penetrate Depth: {:.3f}'.format(round(pose[2] - sp.originZ,6)))
         return True
 
+## move to the given pos. in the leap-frog form
+## with given previous velocity
+## without force monitor (used to pene to previous pt)
+def goPeneGivenPose2(ur_control,pose,pre_vel):
+    sp = SfatyPara()
+    listener = ft_listener()    
+
+    ## safety check
+    if not sp.checkCoorLimit3d(pose):
+        ## velocity setting
+        # ur_control.set_speed_slider(pre_vel)
+        raise Exception('Error: out of workspace')    
+    
+    ## lift up to the safe height
+    waypoints = []
+    wpose = ur_control.group.get_current_pose().pose
+    wpose.position.z = sp.SAFEZ
+    waypoints.append(copy.deepcopy(wpose)) 
+    
+    ## go the given position    
+    wpose.position.x = pose[0]
+    wpose.position.y = pose[1]
+    waypoints.append(copy.deepcopy(wpose))
+
+    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+    listener.clear_finish_flag()
+    ur_control.set_speed_slider(0.5)
+    ur_control.group.execute(plan, wait=True)
+
+    ## penetration
+    waypoints = []
+    wpose.position.z = pose[2]    
+    quater_init = tfs.quaternion_from_euler(0, np.pi, np.pi/2,'szyz')
+    wpose.orientation.x = quater_init[0]
+    wpose.orientation.y = quater_init[1]
+    wpose.orientation.z = quater_init[2]
+    wpose.orientation.w = quater_init[3]
+    waypoints.append(copy.deepcopy(wpose))
+
+    (plan, fraction) = ur_control.go_cartesian_path(waypoints,execute=False)
+    listener.clear_finish_flag()
+    ur_control.set_speed_slider(0.1)
+    # zero_ft_sensor()
+    ur_control.group.execute(plan, wait=True)  
+
+    rospy.sleep(0.5)
+    ## velocity setting
+    ur_control.set_speed_slider(pre_vel)
+    print('**** Penetrate Successfully ****\n')
+    print('Penetrate Depth: {:.3f}'.format(round(pose[2] - sp.originZ,6)))
+    return True
 
 if __name__ == '__main__':
     rospy.init_node("test_move")
