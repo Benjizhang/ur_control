@@ -23,7 +23,7 @@ from std_msgs.msg import String
 
 from tf import transformations as tfs
 from functions.scene_helper import zero_ft_sensor,ft_listener
-from functions.ur_move import MoveGroupPythonInteface,goPeneGivenPose,go2GivenPose,go2GivenPose2
+from functions.ur_move import MoveGroupPythonInteface,goPeneGivenPose,go2GivenPose,goPeneGivenPose2
 from robotiq_ft_sensor.msg import ft_sensor
 from control_msgs.msg import FollowJointTrajectoryActionResult as rlst
 import moveit_commander
@@ -106,7 +106,7 @@ if __name__ == '__main__':
         normalVelScale = 0.5 # <<<<<<
     elif exp_mode == 'normal':
         PENE_DEPTH = -0.05   #(default: -0.03) # <<<<<<
-        normalVelScale = 0.1 # <<<<<<
+        normalVelScale = 0.2 # <<<<<<
     else:
         raise Exception('Error: Invalid Exp Mode!')    
     depthz = originz + PENE_DEPTH
@@ -434,7 +434,8 @@ if __name__ == '__main__':
                                 rela_x_ls.append(round(PtInCIX - originx,4))
                                 rela_y_ls.append(round(PtInCIY - originy,4))
                             ## lift up and move back to & penetrate into the start pt (i.e., previous goal)
-                            flag2 = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
+                            # flag2 = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
+                            flag2 = goPeneGivenPose2(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
                             if flag2 == False: raise Exception('Err: something unexpected')
                             break               
                         
@@ -566,7 +567,8 @@ if __name__ == '__main__':
                                     rela_x_ls.append(round(PtInCIX - originx,4))
                                     rela_y_ls.append(round(PtInCIY - originy,4))
                                 ## lift up and move to & penetrate into the start pt
-                                flag4 = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
+                                # flag4 = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
+                                flag4 = goPeneGivenPose2(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
                                 if flag4 == False: raise Exception('Err: something unexpected')
                                 break                    
                             
