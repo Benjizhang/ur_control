@@ -399,9 +399,9 @@ if __name__ == '__main__':
                     if f_val is not None:
                         ## most conservative way (most safe)
                         if np.round(f_val,6) > CUR_SAFE_FORCE:
+                            ## must get contact again
                             rospy.loginfo('==== Large Force Warning ==== \n')
                             ur_control.group.stop()
-                            ## must get contact again
                             ## contact position
                             contactPosX2 = ur_control.group.get_current_pose().pose.position.x
                             contactPosY2 = ur_control.group.get_current_pose().pose.position.y 
@@ -427,6 +427,11 @@ if __name__ == '__main__':
                                 boa_x_ls.append(round(PtInCIX - originx,4))
                                 boa_y_ls.append(round(PtInCIY - originy,4))
                                 boa_return_ls.append(round(f_val,4))
+                                ## log record on force & relative pos
+                                df_ls.append(round(f_val,4))
+                                dr_ls.append(round(f_dir,4))
+                                rela_x_ls.append(round(PtInCIX - originx,4))
+                                rela_y_ls.append(round(PtInCIY - originy,4))
                             ## lift up and move back to & penetrate into the start pt (i.e., previous goal)
                             flag2 = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
                             if flag2 == False: raise Exception('Err: something unexpected')
@@ -518,11 +523,11 @@ if __name__ == '__main__':
                         if f_val is not None:
                             ### most conservative way (most safe)
                             if np.round(f_val,6) > CUR_SAFE_FORCE:
-                                ## must get contact again
-                                ### ---- v1.0 -----
-                                # rospy.loginfo('==== Large Force Warning ==== \n')
-                                # ur_control.group.stop()
-                                # contactFlag = True                                                                
+                                ## must get contact again                                
+                                rospy.loginfo('==== Large Force Warning ==== \n')
+                                ur_control.group.stop()
+                                contactFlag = True 
+                                ### ---- v1.0 -----                                                               
                                 # ## get contact & tell to the BOA
                                 # curx = ur_control.group.get_current_pose().pose.position.x
                                 # cury = ur_control.group.get_current_pose().pose.position.y
@@ -554,6 +559,11 @@ if __name__ == '__main__':
                                     boa_x_ls.append(round(PtInCIX - originx,4))
                                     boa_y_ls.append(round(PtInCIY - originy,4))
                                     boa_return_ls.append(round(f_val,4))
+                                    ## log record on force & relative pos
+                                    df_ls.append(round(f_val,4))
+                                    dr_ls.append(round(f_dir,4))
+                                    rela_x_ls.append(round(PtInCIX - originx,4))
+                                    rela_y_ls.append(round(PtInCIY - originy,4))
                                 ## lift up and move to & penetrate into the start pt
                                 flag4 = goPeneGivenPose(ur_control,[x_ss_wldf,y_ss_wldf,depthz],normalVelScale)
                                 if flag4 == False: raise Exception('Err: something unexpected')
