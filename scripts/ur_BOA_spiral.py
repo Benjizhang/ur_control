@@ -295,7 +295,7 @@ if __name__ == '__main__':
                 temp2 = norm_vect2goal*norm_vect2cur
                 temp3 = round(abs(temp1 - temp2),6)
                 forward_dist = round(norm_vect2cur,3) # lie in [startpos, goal]                                        
-                if temp3 <=  1e-07 and forward_dist > 0.001 and forward_dist - pre_forward_dist >0:
+                if temp3 <=  1e-07 and forward_dist >= 0.01 and forward_dist - pre_forward_dist >0:
                     # print(temp3)
                     # dist = round(norm_vect2cur-traj_radius,4) # x.x mm                        
                     cent_dist = round(forward_dist - traj_radius,3)
@@ -377,13 +377,6 @@ if __name__ == '__main__':
             if flag1 == True:
                 ## can penetrate into the start pt (i.e., previous goal)
 
-                # ## flip the start and goal in UR frame
-                # x_ss_wldf = x_e_wldf
-                # y_ss_wldf = y_e_wldf
-                # # goal in the UR base frame
-                # x_ee_wldf = x_s_wldf
-                # y_ee_wldf = y_s_wldf
-
                 ## sprial traj. to the previous start position
                 _,_,waypts = urCentOLine_sim(ur_control,traj_radius,0.01,[x_ee_wldf,y_ee_wldf])
                 # _,_,Ocent,waypts = urCent2Circle(ur_control,traj_radius,1,False)
@@ -407,7 +400,8 @@ if __name__ == '__main__':
                             rospy.loginfo('==== Large Force Warning ==== \n')
                             ur_control.group.stop()  
                             # contactFlag = True
-                            ## must get contact again                            
+                            ## must get contact again    
+                            # TODO: tell BOA within the collision interval                        
                             ## get contact & tell to the BOA
                             curx = ur_control.group.get_current_pose().pose.position.x
                             cury = ur_control.group.get_current_pose().pose.position.y
@@ -431,13 +425,14 @@ if __name__ == '__main__':
                         forward_dist = round(norm_vect2cur,3) # lie in [startpos, goal] 
                         # print('temp3: {:.3f}'.format(temp3))
                         # print('forward_dist: {:.3f}'.format(forward_dist))                                       
-                        if temp3 <=  1e-07 and forward_dist > 0.001 and forward_dist - pre_forward_dist >0:
+                        if temp3 <=  1e-07 and forward_dist >= 0.01 and forward_dist - pre_forward_dist >0:
                             # print(temp3)
                             # dist = round(norm_vect2cur-traj_radius,4) # x.x mm                        
                             cent_dist = round(forward_dist - traj_radius,3)
                             ds_ls.append(cent_dist)
                             ds_ite_ls.append(ite)
                             print('----center dist {:.3f}----'.format(cent_dist))
+                            print('----remaining path: {:.3f} m'.format(norm_vect2goal - cent_dist))
                             pre_forward_dist = forward_dist
                             # tell BOA the observed value
                             boax = curx - originx
@@ -529,13 +524,14 @@ if __name__ == '__main__':
                             forward_dist = round(norm_vect2cur,3) # lie in [startpos, goal] 
                             # print('temp3: {:.3f}'.format(temp3))
                             # print('forward_dist: {:.3f}'.format(forward_dist))                                       
-                            if temp3 <=  1e-07 and forward_dist > 0.001 and forward_dist - pre_forward_dist >0:
+                            if temp3 <=  1e-07 and forward_dist >= 0.01 and forward_dist - pre_forward_dist >0:
                                 # print(temp3)
                                 # dist = round(norm_vect2cur-traj_radius,4) # x.x mm                        
                                 cent_dist = round(forward_dist - traj_radius,3)
                                 ds_ls.append(cent_dist)
                                 ds_ite_ls.append(ite)
                                 print('----center dist {:.3f}----'.format(cent_dist))
+                                print('----remaining path: {:.3f} m'.format(norm_vect2goal - cent_dist))
                                 pre_forward_dist = forward_dist
                                 ### tell BOA the observed value
                                 boax = curx - originx
