@@ -20,7 +20,8 @@ def plot_2d2(slide_id, bo, util, kernel,x,y,XY, f_max, fig_path, name=None):
     im00 = ax[0][0].hexbin(x, y, C=mu, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=0, vmax=f_max)
     ax[0][0].axis('scaled')
     ax[0][0].axis([x.min(), x.max(), y.min(), y.max()])
-
+    ax[0][0].plot(bo._space.params[:, 0], bo._space.params[:, 1], 'D', markersize=1, color='k', label='Observations')
+    
     ax[0][1].set_title('Target Function', fontdict={'size':15})
     im01 = ax[0][1].hexbin(x, y, gridsize=gridsize, cmap=cm.jet, bins=None, vmin=0, vmax=1)
     ax[0][1].axis('scaled')
