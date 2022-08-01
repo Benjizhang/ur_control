@@ -784,7 +784,9 @@ def goPeneGivenPose(ur_control,pose,pre_vel):
     ur_control.set_speed_slider(pre_vel)
     if flargeFlag == True:
         return False # move to the given pos failed
-    else: return True
+    else:
+        print('**** Penetrate Successfully ****\n')
+        return True
 
 
 if __name__ == '__main__':
