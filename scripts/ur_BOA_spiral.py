@@ -343,8 +343,6 @@ if __name__ == '__main__':
             boa_y_ls.append(round(boay,4))
             boa_return_ls.append(round(f_val,4))
 
-            ite = ite+1
-
         ## if get contact then start from the goal to the start pos.
         if flargeFlag == True:
             ## record the contact pos.(absolute)
@@ -393,6 +391,7 @@ if __name__ == '__main__':
                 ## --- [force monitor] ---
                 rospy.loginfo('clear_finish_flag')
                 pre_forward_dist = 0.0 
+                ite = ite+1
                 while not listener.read_finish_flag():                    
                     ## measure the force val/dir
                     f_val = listener.get_force_val()
@@ -511,6 +510,7 @@ if __name__ == '__main__':
                     rospy.loginfo('clear_finish_flag')
                     contactFlag = False
                     pre_forward_dist = 0.0 
+                    ite = ite+1 
                     while not listener.read_finish_flag():                    
                         ## measure the force val/dir
                         f_val = listener.get_force_val()
