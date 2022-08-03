@@ -1,5 +1,5 @@
 # exp: ur5 + spiral traj + BOA
-# [Not Done]
+# [Done] first validation in '202208031624_UR_BOA_spiral'
 # Penetration Depth: D5cm # <<<<<<
 # speed/velocity: 0.1 （slow motion）
 # 
@@ -115,7 +115,7 @@ if __name__ == '__main__':
     CUR_SAFE_FORCE = 7.0  #(default: 15N) # <<<<<<
     
     # folder name
-    expFolderName = '/20220727ur_BOA_spiral' # <<<<<<
+    expFolderName = '/202208031624_UR_BOA_spiral' # <<<<<<
     NutStorePath = '/home/zhangzeqing/Nutstore Files/Nutstore'
     dataPath = NutStorePath+expFolderName+'/data'
     figPath = NutStorePath+expFolderName+'/fig'

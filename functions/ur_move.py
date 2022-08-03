@@ -771,8 +771,9 @@ def goPeneGivenPose(ur_control,pose,pre_vel):
         if f_val_abs is not None:
             ## most conservative way (most safe)
             max_pene_f = max(max_pene_f,round(f_val_abs,6))
+            print('Attention: Penetrating....')
             print('Pene Force: {:.3f} N'.format(round(f_val_abs,6)))
-            print('Max Pene Force: {:.3f} N'.format(max_pene_f))
+            # print('Max Pene Force: {:.3f} N'.format(max_pene_f))
             if round(f_val_abs,6) > sp.PENE_FORCE_MAX:
                 print('==== Can Not Penetrate ==== \n')
                 ur_control.group.stop()
@@ -782,11 +783,12 @@ def goPeneGivenPose(ur_control,pose,pre_vel):
     rospy.sleep(0.5)
     ## velocity setting
     ur_control.set_speed_slider(pre_vel)
+    print('Max Pene Force: {:.3f} N'.format(max_pene_f))
     if flargeFlag == True:
         return False # move to the given pos failed
     else:
+        print('Penetrate Depth: {:.3f} m'.format(round(pose[2] - sp.originZ,6)))
         print('**** Penetrate Successfully ****\n')
-        print('Penetrate Depth: {:.3f}'.format(round(pose[2] - sp.originZ,6)))
         return True
 
 ## move to the given pos. in the leap-frog form
@@ -832,13 +834,15 @@ def goPeneGivenPose2(ur_control,pose,pre_vel):
     listener.clear_finish_flag()
     ur_control.set_speed_slider(0.1)
     # zero_ft_sensor()
-    ur_control.group.execute(plan, wait=True)  
+    ur_control.group.execute(plan, wait=False)
+    while not listener.read_finish_flag(): 
+        print('Attention: Penetrating....') 
 
     rospy.sleep(0.5)
     ## velocity setting
     ur_control.set_speed_slider(pre_vel)
-    print('**** Penetrate Successfully ****\n')
     print('Penetrate Depth: {:.3f}'.format(round(pose[2] - sp.originZ,6)))
+    print('**** Penetrate Successfully ****\n')    
     return True
 
 if __name__ == '__main__':
