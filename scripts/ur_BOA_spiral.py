@@ -23,7 +23,7 @@ from std_msgs.msg import String
 
 from tf import transformations as tfs
 from functions.scene_helper import zero_ft_sensor,ft_listener
-from functions.ur_move import MoveGroupPythonInteface,goPeneGivenPose,go2GivenPose,goPeneGivenPose2
+from functions.ur_move import MoveGroupPythonInteface,goPeneGivenPose,go2Origin,go2GivenPose,goPeneGivenPose2
 from robotiq_ft_sensor.msg import ft_sensor
 from control_msgs.msg import FollowJointTrajectoryActionResult as rlst
 import moveit_commander
